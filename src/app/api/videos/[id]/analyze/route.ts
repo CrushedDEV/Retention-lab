@@ -48,6 +48,12 @@ export async function POST(
 
   try {
     const profile = await getCreatorProfile(session.user.id, sourceKey);
+    const profileRow = await prisma.creatorProfile.findUnique({
+      where: {
+        userId_sourceKey: { userId: session.user.id, sourceKey },
+      },
+      select: { analysesCount: true },
+    });
 
     // Intenta obtener/actualizar la retención real antes de analizar.
     // Solo para vídeos PROPIOS (Analytics requiere ser dueño del canal).
@@ -98,6 +104,7 @@ export async function POST(
         text: s.text,
       })),
       creatorProfile: profile,
+      profileVideoCount: profileRow?.analysesCount ?? 0,
     });
 
     await prisma.analysis.upsert({

@@ -91,11 +91,18 @@ export async function analyzeVideo(input: {
   retentionDropsData?: { t: number; dropPct: number }[];
   segments: { startTime: number; endTime: number; text: string }[];
   creatorProfile?: CreatorProfileData | null;
+  profileVideoCount?: number;
 }): Promise<VideoAnalysisResult> {
+  const count = input.profileVideoCount ?? 0;
+  const lowData = count < 4;
   const profileBlock = input.creatorProfile
-    ? `Perfil conocido del creador (úsalo como contexto):\n${JSON.stringify(
-        input.creatorProfile
-      )}`
+    ? `Perfil conocido del creador (basado en ${count} vídeo(s) analizado(s); úsalo SOLO como contexto de fondo):
+${JSON.stringify(input.creatorProfile)}
+${
+  lowData
+    ? "AVISO: el perfil se basa en MUY POCOS vídeos, así que es preliminar y poco fiable. NO lo trates como 'el estilo habitual' del creador ni saques conclusiones fuertes de él."
+    : ""
+}`
     : "Aún no hay perfil del creador; este puede ser uno de sus primeros análisis.";
 
   const hasRetention =
@@ -124,6 +131,12 @@ ${profileBlock}
 
 TRANSCRIPCIÓN SEGMENTADA (con timestamps):
 ${transcriptToText(input.segments)}
+
+REGLAS DEL ANÁLISIS:
+- Juzga este vídeo POR SUS PROPIOS MÉRITOS y por los datos reales (métricas + retención), no por compararlo con vídeos anteriores del creador.
+- NO consideres un punto negativo que el vídeo se aparte del tema o estilo "habitual" del creador. Explorar temas distintos es legítimo y a menudo necesario para crecer; no lo penalices ni lo menciones como debilidad salvo que los DATOS de retención lo respalden.
+- No asumas que un único tema (p. ej. "polémica") es la fórmula del creador. Evita afirmaciones tajantes sobre su identidad si hay pocos datos.
+- Sé concreto: ata cada conclusión a algo del guion o a las métricas/retención.
 
 Devuelve un JSON con EXACTAMENTE esta forma:
 {
@@ -185,6 +198,10 @@ export async function buildCreatorProfile(input: {
     summary: v.analysis.performanceSummary,
   });
 
+  const totalVideos =
+    input.successfulVideos.length + input.underperformingVideos.length;
+  const lowData = totalVideos < 4;
+
   const userPrompt = `Construye/actualiza el PERFIL DE CREADOR de un mismo autor de YouTube.
 
 REGLA CLAVE: el "estilo" del creador (hookStyle, narrativeStructures, retentionPatterns,
@@ -194,7 +211,16 @@ esos errores van EXCLUSIVAMENTE en "avoidPatterns" (cosas a evitar en el futuro)
 Sintetiza patrones reales y específicos, nunca consejos genéricos.
 
 ${
-  input.previousProfile
+  lowData
+    ? `MUY IMPORTANTE: solo hay ${totalVideos} vídeo(s) analizado(s). Es una muestra mínima.
+- NO generalices un único tema/formato como "el estilo del creador".
+- Redacta en tono TENTATIVO ("en los pocos datos disponibles…", "parece…"), evita "siempre/suele/habitual".
+- No inventes patrones que no se sostengan con tan pocos datos; deja listas cortas o vacías si no hay evidencia.`
+    : ""
+}
+
+${
+  input.previousProfile && !lowData
     ? `Perfil previo (refínalo, no lo borres):\n${JSON.stringify(
         input.previousProfile
       )}\n`
