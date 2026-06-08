@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getCreatorProfile } from "@/lib/creator-profile";
+import { getCreatorProfiles } from "@/lib/creator-profile";
 import { GeneratorWorkspace } from "@/components/GeneratorWorkspace";
 import type { GeneratedScriptContent } from "@/lib/ai";
 
@@ -10,8 +10,8 @@ export default async function GeneratorPage() {
   const session = await auth();
   const userId = session!.user.id;
 
-  const [profile, saved] = await Promise.all([
-    getCreatorProfile(userId),
+  const [profiles, saved] = await Promise.all([
+    getCreatorProfiles(userId),
     prisma.generatedScript.findMany({
       where: { userId },
       orderBy: { updatedAt: "desc" },
@@ -38,7 +38,10 @@ export default async function GeneratorPage() {
         con mejor rendimiento. Puedes editarlo y guardarlo.
       </p>
       <GeneratorWorkspace
-        hasProfile={!!profile}
+        profiles={profiles.map((p) => ({
+          sourceKey: p.sourceKey,
+          label: p.label,
+        }))}
         initialScripts={initialScripts}
       />
     </div>

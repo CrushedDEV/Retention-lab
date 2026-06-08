@@ -22,7 +22,7 @@ export default async function DashboardPage() {
 
   const [videos, connected] = await Promise.all([
     prisma.video.findMany({
-      where: { userId },
+      where: { userId, isExternal: false },
       orderBy: { publishedAt: "desc" },
     }),
     hasGoogleConnected(userId),

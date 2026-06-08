@@ -101,8 +101,26 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) token.id = user.id;
+      // En cada (re)conexión con Google, refresca los tokens y el SCOPE en la
+      // BD. Sin esto, al reconectar para conceder yt-analytics.readonly se
+      // seguía usando el token antiguo sin permisos de Analytics.
+      if (account?.provider === "google" && user?.id) {
+        await prisma.account.updateMany({
+          where: { userId: user.id, provider: "google" },
+          data: {
+            access_token: account.access_token,
+            expires_at: account.expires_at,
+            scope: account.scope,
+            token_type: account.token_type,
+            id_token: account.id_token,
+            ...(account.refresh_token
+              ? { refresh_token: account.refresh_token }
+              : {}),
+          },
+        });
+      }
       return token;
     },
     async session({ session, token }) {

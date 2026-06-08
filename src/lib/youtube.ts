@@ -12,6 +12,24 @@ export interface YouTubeVideoData {
   likes: number;
   comments: number;
   durationSec: number;
+  channelId: string | null;
+  channelTitle: string | null;
+}
+
+/** Extrae el ID de vídeo de una URL de YouTube o devuelve la cadena si ya es un ID. */
+export function extractVideoId(input: string): string | null {
+  const s = input.trim();
+  if (/^[a-zA-Z0-9_-]{11}$/.test(s)) return s;
+  const patterns = [
+    /[?&]v=([a-zA-Z0-9_-]{11})/,
+    /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/(?:embed|shorts|live)\/([a-zA-Z0-9_-]{11})/,
+  ];
+  for (const re of patterns) {
+    const m = s.match(re);
+    if (m) return m[1];
+  }
+  return null;
 }
 
 export interface CaptionSegment {
@@ -76,24 +94,74 @@ export async function fetchChannelVideos(
     accessToken
   );
 
-  return (videosData.items ?? []).map((v: any): YouTubeVideoData => {
-    const thumbs = v.snippet?.thumbnails ?? {};
-    const thumb =
-      thumbs.maxres?.url ||
-      thumbs.high?.url ||
-      thumbs.medium?.url ||
-      thumbs.default?.url ||
-      null;
+  return (videosData.items ?? []).map(mapVideoItem);
+}
+
+function mapVideoItem(v: any): YouTubeVideoData {
+  const thumbs = v.snippet?.thumbnails ?? {};
+  const thumb =
+    thumbs.maxres?.url ||
+    thumbs.high?.url ||
+    thumbs.medium?.url ||
+    thumbs.default?.url ||
+    null;
+  return {
+    youtubeId: v.id,
+    title: v.snippet?.title ?? "(sin título)",
+    url: `https://www.youtube.com/watch?v=${v.id}`,
+    thumbnail: thumb,
+    publishedAt: v.snippet?.publishedAt ?? null,
+    views: parseInt(v.statistics?.viewCount ?? "0") || 0,
+    likes: parseInt(v.statistics?.likeCount ?? "0") || 0,
+    comments: parseInt(v.statistics?.commentCount ?? "0") || 0,
+    durationSec: parseDuration(v.contentDetails?.duration ?? ""),
+    channelId: v.snippet?.channelId ?? null,
+    channelTitle: v.snippet?.channelTitle ?? null,
+  };
+}
+
+/** Obtiene los datos completos de un vídeo público por su ID. */
+export async function fetchVideoById(
+  accessToken: string,
+  videoId: string
+): Promise<YouTubeVideoData | null> {
+  const data = await ytFetch(
+    `videos?part=snippet,statistics,contentDetails&id=${videoId}`,
+    accessToken
+  );
+  const item = data.items?.[0];
+  return item ? mapVideoItem(item) : null;
+}
+
+export interface SearchResult {
+  youtubeId: string;
+  title: string;
+  channelTitle: string | null;
+  thumbnail: string | null;
+  publishedAt: string | null;
+}
+
+/** Busca vídeos públicos de cualquier creador por palabra clave. */
+export async function searchVideos(
+  accessToken: string,
+  query: string,
+  maxResults = 12
+): Promise<SearchResult[]> {
+  const data = await ytFetch(
+    `search?part=snippet&type=video&maxResults=${maxResults}&q=${encodeURIComponent(
+      query
+    )}`,
+    accessToken
+  );
+  return (data.items ?? []).map((it: any): SearchResult => {
+    const thumbs = it.snippet?.thumbnails ?? {};
     return {
-      youtubeId: v.id,
-      title: v.snippet?.title ?? "(sin título)",
-      url: `https://www.youtube.com/watch?v=${v.id}`,
-      thumbnail: thumb,
-      publishedAt: v.snippet?.publishedAt ?? null,
-      views: parseInt(v.statistics?.viewCount ?? "0") || 0,
-      likes: parseInt(v.statistics?.likeCount ?? "0") || 0,
-      comments: parseInt(v.statistics?.commentCount ?? "0") || 0,
-      durationSec: parseDuration(v.contentDetails?.duration ?? ""),
+      youtubeId: it.id?.videoId,
+      title: it.snippet?.title ?? "(sin título)",
+      channelTitle: it.snippet?.channelTitle ?? null,
+      thumbnail:
+        thumbs.high?.url || thumbs.medium?.url || thumbs.default?.url || null,
+      publishedAt: it.snippet?.publishedAt ?? null,
     };
   });
 }

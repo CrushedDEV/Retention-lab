@@ -25,7 +25,7 @@ model User {
   videos          Video[]
   analyses        Analysis[]
   generatedScripts GeneratedScript[]
-  creatorProfile  CreatorProfile?
+  creatorProfiles CreatorProfile[]
 }
 
 // Cuentas OAuth vinculadas (Google -> tokens de YouTube)
@@ -88,6 +88,12 @@ model Video {
   url         String
   thumbnail   String?
   publishedAt DateTime?
+
+  // Creador. Para vídeos propios isExternal=false; para vídeos de otros
+  // creadores importados para análisis, isExternal=true.
+  channelId    String?
+  channelTitle String?
+  isExternal   Boolean @default(false)
   views       Int      @default(0)
   likes       Int      @default(0)
   comments    Int      @default(0)
@@ -144,20 +150,27 @@ model Analysis {
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// Perfil del creador, se actualiza con cada análisis
+// Perfil de creador. Cada usuario tiene varios: el suyo ("own") y uno por
+// cada creador externo que haya analizado (sourceKey = channelId).
 model CreatorProfile {
   id     String @id @default(cuid())
-  userId String @unique
+  userId String
+
+  sourceKey String @default("own") // "own" o el channelId del creador externo
+  label     String @default("Tu canal") // nombre mostrado
 
   // JSON estructurado:
   // { hookStyle, avgSuccessfulDurationSec, narrativeStructures[],
-  //   retentionPatterns[], writingTone, summary }
+  //   retentionPatterns[], writingTone, summary, avoidPatterns[] }
   data Json @default("{}")
 
   analysesCount Int      @default(0)
   updatedAt     DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sourceKey])
+  @@index([userId])
 }
 
 model GeneratedScript {

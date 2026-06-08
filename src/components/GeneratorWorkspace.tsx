@@ -20,13 +20,22 @@ interface SavedScript {
   createdAt: string;
 }
 
+interface ProfileOption {
+  sourceKey: string;
+  label: string;
+}
+
 export function GeneratorWorkspace({
-  hasProfile,
+  profiles,
   initialScripts,
 }: {
-  hasProfile: boolean;
+  profiles: ProfileOption[];
   initialScripts: SavedScript[];
 }) {
+  const hasProfile = profiles.length > 0;
+  const [sourceKey, setSourceKey] = useState<string>(
+    profiles[0]?.sourceKey ?? "own"
+  );
   const [scripts, setScripts] = useState<SavedScript[]>(initialScripts);
   const [activeId, setActiveId] = useState<string | null>(
     initialScripts[0]?.id ?? null
@@ -56,7 +65,7 @@ export function GeneratorWorkspace({
     const res = await fetch("/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ topic }),
+      body: JSON.stringify({ topic, sourceKey }),
     });
     const data = await res.json().catch(() => ({}));
     setGenLoading(false);
@@ -180,6 +189,28 @@ export function GeneratorWorkspace({
         )}
 
         <form onSubmit={generate} className="card p-5">
+          {profiles.length > 0 && (
+            <div className="mb-4">
+              <label className="mb-2 block text-sm font-medium text-ink">
+                Estilo del creador
+              </label>
+              <select
+                className="input"
+                value={sourceKey}
+                onChange={(e) => setSourceKey(e.target.value)}
+              >
+                {profiles.map((p) => (
+                  <option key={p.sourceKey} value={p.sourceKey}>
+                    {p.sourceKey === "own" ? `${p.label} (tú)` : p.label}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1.5 text-xs text-muted">
+                El guion imitará el estilo de este creador.
+              </p>
+            </div>
+          )}
+
           <label className="mb-2 block text-sm font-medium text-ink">
             Nuevo guion sobre…
           </label>

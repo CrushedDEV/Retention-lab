@@ -5,15 +5,41 @@ import {
   type VideoAnalysisResult,
 } from "@/lib/ai";
 
+export const OWN_SOURCE = "own";
+
+export interface ProfileEntry {
+  sourceKey: string;
+  label: string;
+  data: CreatorProfileData;
+  analysesCount: number;
+}
+
+/** Clave de fuente para un vídeo: "own" (propio) o el channelId del externo. */
+export function sourceKeyForVideo(v: {
+  isExternal: boolean;
+  channelId: string | null;
+}): string {
+  if (!v.isExternal) return OWN_SOURCE;
+  return v.channelId ?? "external";
+}
+
 /**
- * Recalcula y persiste el perfil del creador a partir de TODOS sus
- * análisis actuales. Se llama automáticamente tras cada análisis de vídeo.
+ * Recalcula y persiste el perfil de una fuente concreta (propio o un creador
+ * externo) a partir de TODOS los análisis de vídeos de esa fuente.
  */
 export async function refreshCreatorProfile(
-  userId: string
+  userId: string,
+  sourceKey: string,
+  label: string
 ): Promise<CreatorProfileData | null> {
+  // Filtro de vídeos según la fuente
+  const videoWhere =
+    sourceKey === OWN_SOURCE
+      ? { userId, isExternal: false }
+      : { userId, channelId: sourceKey };
+
   const analyses = await prisma.analysis.findMany({
-    where: { userId },
+    where: { userId, video: videoWhere },
     include: { video: true },
     orderBy: { video: { views: "desc" } },
     take: 30,
@@ -22,7 +48,7 @@ export async function refreshCreatorProfile(
   if (analyses.length === 0) return null;
 
   const existing = await prisma.creatorProfile.findUnique({
-    where: { userId },
+    where: { userId_sourceKey: { userId, sourceKey } },
   });
 
   const mapped = analyses.map((a) => ({
@@ -34,12 +60,8 @@ export async function refreshCreatorProfile(
     analysis: a.result as unknown as VideoAnalysisResult,
   }));
 
-  // Define "éxito" combinando visualizaciones (sobre la mediana del creador),
-  // retención y score del análisis. El perfil aprende SOLO de los éxitos;
-  // los fracasos solo alimentan los anti-patrones (avoidPatterns).
   const viewsSorted = [...mapped.map((m) => m.views)].sort((a, b) => a - b);
-  const medianViews =
-    viewsSorted[Math.floor(viewsSorted.length / 2)] ?? 0;
+  const medianViews = viewsSorted[Math.floor(viewsSorted.length / 2)] ?? 0;
 
   const isSuccess = (m: (typeof mapped)[number]) =>
     m.score >= 7 ||
@@ -49,7 +71,6 @@ export async function refreshCreatorProfile(
   let successful = mapped.filter(isSuccess);
   let underperforming = mapped.filter((m) => !isSuccess(m));
 
-  // Si aún no hay suficientes datos, usa los mejores como referencia positiva.
   if (successful.length === 0) {
     successful = mapped.slice(0, Math.min(3, mapped.length));
     underperforming = [];
@@ -62,13 +83,16 @@ export async function refreshCreatorProfile(
   });
 
   await prisma.creatorProfile.upsert({
-    where: { userId },
+    where: { userId_sourceKey: { userId, sourceKey } },
     create: {
       userId,
+      sourceKey,
+      label,
       data: profile as unknown as object,
       analysesCount: analyses.length,
     },
     update: {
+      label,
       data: profile as unknown as object,
       analysesCount: analyses.length,
     },
@@ -78,11 +102,33 @@ export async function refreshCreatorProfile(
 }
 
 export async function getCreatorProfile(
-  userId: string
+  userId: string,
+  sourceKey: string = OWN_SOURCE
 ): Promise<CreatorProfileData | null> {
-  const p = await prisma.creatorProfile.findUnique({ where: { userId } });
+  const p = await prisma.creatorProfile.findUnique({
+    where: { userId_sourceKey: { userId, sourceKey } },
+  });
   if (!p) return null;
   const data = p.data as unknown as CreatorProfileData;
   if (!data || Object.keys(data).length === 0) return null;
   return data;
+}
+
+/** Todos los perfiles del usuario (propio primero). */
+export async function getCreatorProfiles(
+  userId: string
+): Promise<ProfileEntry[]> {
+  const profiles = await prisma.creatorProfile.findMany({
+    where: { userId },
+    orderBy: { updatedAt: "desc" },
+  });
+  return profiles
+    .map((p) => ({
+      sourceKey: p.sourceKey,
+      label: p.label,
+      data: p.data as unknown as CreatorProfileData,
+      analysesCount: p.analysesCount,
+    }))
+    .filter((p) => p.data && Object.keys(p.data).length > 0)
+    .sort((a, b) => (a.sourceKey === OWN_SOURCE ? -1 : b.sourceKey === OWN_SOURCE ? 1 : 0));
 }

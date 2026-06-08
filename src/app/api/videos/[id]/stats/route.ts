@@ -45,6 +45,23 @@ export async function POST(
       },
     });
 
+    // Si no hubo curva y hubo errores, devuélvelos para diagnóstico.
+    if (analytics.retentionCurve.length === 0 && analytics.errors.length > 0) {
+      const detail = analytics.errors.join(" | ");
+      let hint = detail;
+      if (/insufficient|scope|forbidden|403/i.test(detail)) {
+        hint =
+          "Falta el permiso de Analytics. Reconecta YouTube en Ajustes (acepta los permisos) y vuelve a intentarlo.";
+      } else if (/not been used|disabled|enable|SERVICE_DISABLED/i.test(detail)) {
+        hint =
+          "La «YouTube Analytics API» no está habilitada en tu proyecto de Google Cloud. Habilítala y reintenta.";
+      }
+      return NextResponse.json(
+        { error: hint, detail, analytics },
+        { status: 502 }
+      );
+    }
+
     return NextResponse.json({ ok: true, analytics });
   } catch (err: any) {
     console.error("stats error", err);

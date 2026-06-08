@@ -9,12 +9,16 @@ import {
   SparkIcon,
   SettingsIcon,
   LogoutIcon,
+  BookIcon,
+  UsersIcon,
   WaveLogo,
 } from "@/components/icons";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 const nav = [
+  { href: "/guide", label: "Cómo usar", Icon: BookIcon },
   { href: "/dashboard", label: "Vídeos", Icon: VideoIcon },
+  { href: "/explore", label: "Explorar creadores", Icon: UsersIcon },
   { href: "/analysis", label: "Análisis", Icon: ChartIcon },
   { href: "/generator", label: "Generador", Icon: SparkIcon },
   { href: "/settings", label: "Ajustes", Icon: SettingsIcon },

@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { analyzeVideo, MODEL } from "@/lib/ai";
-import { getCreatorProfile, refreshCreatorProfile } from "@/lib/creator-profile";
+import {
+  getCreatorProfile,
+  refreshCreatorProfile,
+  sourceKeyForVideo,
+} from "@/lib/creator-profile";
 import { getGoogleAccessToken } from "@/lib/google-token";
 import {
   fetchVideoAnalytics,
@@ -37,15 +41,23 @@ export async function POST(
     data: { analysisStatus: "ANALYZING" },
   });
 
+  const sourceKey = sourceKeyForVideo(video);
+  const sourceLabel = video.isExternal
+    ? video.channelTitle ?? "Creador externo"
+    : "Tu canal";
+
   try {
-    const profile = await getCreatorProfile(session.user.id);
+    const profile = await getCreatorProfile(session.user.id, sourceKey);
 
     // Intenta obtener/actualizar la retención real antes de analizar.
+    // Solo para vídeos PROPIOS (Analytics requiere ser dueño del canal).
     let retentionCurve = (video.retentionCurve as unknown as RetentionPoint[]) ?? [];
     let avgViewPercentage = video.avgViewPercentage;
     let avgViewDurationSec = video.avgViewDurationSec;
     try {
-      const token = await getGoogleAccessToken(session.user.id);
+      const token = video.isExternal
+        ? null
+        : await getGoogleAccessToken(session.user.id);
       if (token) {
         const a = await fetchVideoAnalytics(
           token,
@@ -107,8 +119,9 @@ export async function POST(
       data: { analysisStatus: "ANALYZED" },
     });
 
-    // El perfil del creador se actualiza automáticamente con cada análisis.
-    await refreshCreatorProfile(session.user.id);
+    // El perfil de ESA fuente (propio o creador externo) se actualiza
+    // automáticamente con cada análisis.
+    await refreshCreatorProfile(session.user.id, sourceKey, sourceLabel);
 
     return NextResponse.json({ ok: true, result });
   } catch (err: any) {

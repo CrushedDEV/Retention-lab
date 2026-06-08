@@ -10,6 +10,7 @@ export interface VideoAnalytics {
   avgViewPercentage: number;
   subscribersGained: number;
   retentionCurve: RetentionPoint[];
+  errors: string[];
 }
 
 async function query(params: Record<string, string>, accessToken: string) {
@@ -45,6 +46,7 @@ export async function fetchVideoAnalytics(
     avgViewPercentage: 0,
     subscribersGained: 0,
     retentionCurve: [],
+    errors: [],
   };
 
   // 1) Métricas resumen
@@ -65,8 +67,9 @@ export async function fetchVideoAnalytics(
       result.avgViewPercentage = Number((row[1] ?? 0).toFixed(1));
       result.subscribersGained = Math.round(row[2] ?? 0);
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error("analytics summary error", e);
+    result.errors.push(String(e?.message ?? e));
   }
 
   // 2) Curva de retención (audienceWatchRatio por elapsedVideoTimeRatio)
@@ -87,8 +90,9 @@ export async function fetchVideoAnalytics(
       t: Number((ratio * durationSec).toFixed(1)),
       watchRatio: Number((watchRatio ?? 0).toFixed(3)),
     }));
-  } catch (e) {
+  } catch (e: any) {
     console.error("analytics retention error", e);
+    result.errors.push(String(e?.message ?? e));
   }
 
   return result;

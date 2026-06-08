@@ -58,11 +58,20 @@ export default async function VideoPage({
   return (
     <div>
       <Link
-        href="/dashboard"
+        href={video.isExternal ? "/explore" : "/dashboard"}
         className="inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-ink"
       >
-        <ArrowLeftIcon className="h-4 w-4" /> Volver a vídeos
+        <ArrowLeftIcon className="h-4 w-4" />{" "}
+        {video.isExternal ? "Volver a Explorar" : "Volver a vídeos"}
       </Link>
+
+      {video.isExternal && (
+        <p className="mt-3 inline-flex items-center gap-2 rounded-full border border-line bg-surface2/60 px-3 py-1 text-xs text-muted">
+          <ChartIcon className="h-3.5 w-3.5" />
+          Vídeo externo de{" "}
+          <span className="text-ink">{video.channelTitle ?? "otro creador"}</span>
+        </p>
+      )}
 
       <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-2xl">
@@ -105,8 +114,8 @@ export default async function VideoPage({
         ))}
       </div>
 
-      {/* Retención de audiencia */}
-      <div className="mt-5 card p-6">
+      {/* Retención de audiencia (solo vídeos propios) */}
+      <div className={`mt-5 card p-6 ${video.isExternal ? "hidden" : ""}`}>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <ChartIcon className="h-5 w-5 text-accent" />

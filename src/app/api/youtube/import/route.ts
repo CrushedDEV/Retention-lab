@@ -38,6 +38,9 @@ export async function POST() {
           likes: v.likes,
           comments: v.comments,
           durationSec: v.durationSec,
+          channelId: v.channelId,
+          channelTitle: v.channelTitle,
+          isExternal: false,
         },
         update: {
           // refresca métricas en reimportaciones
@@ -45,6 +48,8 @@ export async function POST() {
           views: v.views,
           likes: v.likes,
           comments: v.comments,
+          channelId: v.channelId,
+          channelTitle: v.channelTitle,
         },
       });
       imported++;
