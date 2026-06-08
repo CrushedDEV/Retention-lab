@@ -11,7 +11,8 @@
       "Bash(echo \"EXIT: $?\")",
       "Bash(node -e \"const fs=require\\('fs'\\);const p='src/components/Sidebar.tsx';let s=fs.readFileSync\\(p,'utf8'\\);s=s.split\\('font-700'\\).join\\('font-bold'\\);fs.writeFileSync\\(p,s\\);console.log\\('ok'\\)\")",
       "Bash(git add *)",
-      "Bash(git commit -m 'Add transcript API fallback + manual paste for captions on Vercel *)"
+      "Bash(git commit -m 'Add transcript API fallback + manual paste for captions on Vercel *)",
+      "Bash(git push *)"
     ]
   }
 }
