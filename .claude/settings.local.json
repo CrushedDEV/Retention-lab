@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(node -e \"const fs=require\\('fs'\\);const p='src/lib/ai.ts';let s=fs.readFileSync\\(p,'utf8'\\);s=s.split\\('await openai.chat.completions.create'\\).join\\('await getOpenAI\\(\\).chat.completions.create'\\);fs.writeFileSync\\(p,s\\);console.log\\('replaced', \\(s.match\\(/getOpenAI\\\\\\(\\\\\\)\\\\.chat/g\\)||[]\\).length\\)\")",
+      "Bash(SKIP_ENV_VALIDATION=1 DATABASE_URL=\"postgresql://u:p@localhost:5432/db\" NEXTAUTH_SECRET=\"x\" npx next build)",
+      "Bash(node -e ' *)",
+      "Bash(npx prisma *)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);const p='src/components/Sidebar.tsx';let s=fs.readFileSync\\(p,'utf8'\\);s=s.split\\('font-700'\\).join\\('font-bold'\\);fs.writeFileSync\\(p,s\\);console.log\\('ok'\\)\")"
+    ]
+  }
+}

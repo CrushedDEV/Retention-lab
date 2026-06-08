@@ -1,0 +1,170 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------------------------
+// NextAuth + autenticación
+// ----------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String? // login con credenciales (email + contraseña)
+  createdAt     DateTime  @default(now())
+
+  accounts        Account[]
+  sessions        Session[]
+  videos          Video[]
+  analyses        Analysis[]
+  generatedScripts GeneratedScript[]
+  creatorProfile  CreatorProfile?
+}
+
+// Cuentas OAuth vinculadas (Google -> tokens de YouTube)
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ----------------------------------------------------------------------------
+// Dominio: vídeos, transcripciones, análisis, perfil, guiones
+// ----------------------------------------------------------------------------
+
+enum AnalysisStatus {
+  NOT_ANALYZED
+  ANALYZING
+  ANALYZED
+}
+
+enum TranscriptStatus {
+  NO_CAPTIONS
+  PENDING_REVIEW
+  APPROVED
+}
+
+model Video {
+  id          String   @id @default(cuid())
+  userId      String
+  youtubeId   String
+  title       String
+  url         String
+  thumbnail   String?
+  publishedAt DateTime?
+  views       Int      @default(0)
+  likes       Int      @default(0)
+  comments    Int      @default(0)
+  durationSec Int      @default(0)
+
+  transcriptStatus TranscriptStatus @default(NO_CAPTIONS)
+  analysisStatus   AnalysisStatus   @default(NOT_ANALYZED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  segments TranscriptSegment[]
+  analysis Analysis?
+
+  @@unique([userId, youtubeId])
+  @@index([userId])
+}
+
+model TranscriptSegment {
+  id        String @id @default(cuid())
+  videoId   String
+  // segundos
+  startTime Float
+  endTime   Float
+  text      String @db.Text
+  order     Int
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@index([videoId])
+}
+
+model Analysis {
+  id      String @id @default(cuid())
+  videoId String @unique
+  userId  String
+
+  // Resultado estructurado de la IA (JSON):
+  // { performanceSummary, retentionDrops[], creatorPatterns[], recommendations[] }
+  result Json
+
+  modelUsed String?
+  createdAt DateTime @default(now())
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Perfil del creador, se actualiza con cada análisis
+model CreatorProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  // JSON estructurado:
+  // { hookStyle, avgSuccessfulDurationSec, narrativeStructures[],
+  //   retentionPatterns[], writingTone, summary }
+  data Json @default("{}")
+
+  analysesCount Int      @default(0)
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model GeneratedScript {
+  id     String @id @default(cuid())
+  userId String
+
+  topic   String
+  // JSON estructurado del guion generado
+  content Json
+
+  modelUsed String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}

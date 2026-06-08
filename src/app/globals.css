@@ -1,0 +1,125 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =========================================================================
+   Tema — oscuro por defecto. El tema claro se activa con [data-theme="light"]
+   ========================================================================= */
+:root {
+  --bg: 8 9 12;
+  --surface: 18 19 24;
+  --surface-2: 26 28 35;
+  --border: 39 42 51;
+  --text: 235 237 242;
+  --text-muted: 138 143 158;
+  --accent: 198 242 78; /* lima-señal */
+  --accent-fg: 12 16 6;
+  --danger: 255 110 95;
+  --warning: 245 186 92;
+  --success: 122 222 154;
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  --bg: 247 247 245;
+  --surface: 255 255 255;
+  --surface-2: 242 242 240;
+  --border: 226 226 222;
+  --text: 22 23 28;
+  --text-muted: 104 108 120;
+  --accent: 77 124 15; /* lima profundo, legible sobre blanco */
+  --accent-fg: 247 250 240;
+  --danger: 214 64 49;
+  --warning: 181 122 21;
+  --success: 33 142 84;
+  color-scheme: light;
+}
+
+* {
+  border-color: rgb(var(--border));
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-bg font-sans text-ink antialiased;
+  background-image:
+    radial-gradient(
+      900px circle at 100% 0%,
+      rgb(var(--accent) / 0.07),
+      transparent 45%
+    ),
+    radial-gradient(
+      700px circle at 0% 100%,
+      rgb(var(--accent) / 0.04),
+      transparent 40%
+    );
+  background-attachment: fixed;
+}
+
+::selection {
+  background: rgb(var(--accent) / 0.3);
+  color: rgb(var(--text));
+}
+
+/* Scrollbar fino */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--border));
+  border-radius: 999px;
+  border: 2px solid rgb(var(--bg));
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--text-muted) / 0.5);
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium tracking-tight transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-primary {
+    @apply btn bg-accent text-accent-fg hover:shadow-glow hover:brightness-105 active:scale-[0.98];
+  }
+  .btn-secondary {
+    @apply btn border border-line bg-surface2/60 text-ink hover:border-ink/20 hover:bg-surface2;
+  }
+  .btn-ghost {
+    @apply btn text-muted hover:bg-surface2/70 hover:text-ink;
+  }
+
+  .card {
+    @apply rounded-xl border border-line bg-surface/80 shadow-panel backdrop-blur-sm;
+  }
+
+  .input,
+  .textarea {
+    @apply w-full rounded-lg border border-line bg-surface2/50 px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted/60 focus:border-accent/60 focus:bg-surface2 focus:ring-4 focus:ring-accent/10;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium tracking-tight;
+  }
+
+  /* Etiqueta tipo terminal: mono, mayúsculas, espaciada */
+  .eyebrow {
+    @apply font-mono text-[11px] uppercase tracking-[0.18em] text-muted;
+  }
+
+  .stat-value {
+    @apply font-mono text-2xl font-semibold tracking-tight text-ink;
+  }
+}
+
+/* Marca/onda animada del logo */
+.wave-bar {
+  animation: pulse-bar 1.4s ease-in-out infinite;
+  transform-origin: center;
+}
