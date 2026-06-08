@@ -103,6 +103,7 @@ export default async function VideoPage({
           <TranscriptEditor
             videoId={video.id}
             status={video.transcriptStatus}
+            durationSec={video.durationSec}
             initialSegments={video.segments.map((s) => ({
               startTime: s.startTime,
               endTime: s.endTime,

@@ -122,6 +122,66 @@ export async function fetchCaptions(
   });
 }
 
+/**
+ * Extrae captions mediante un servicio externo con proxies (Supadata), que SÍ
+ * funciona desde IPs de datacenter como Vercel. Requiere SUPADATA_API_KEY.
+ * Lanza si no está configurado o si la API falla.
+ */
+export async function fetchCaptionsViaApi(
+  youtubeId: string
+): Promise<CaptionSegment[]> {
+  const key = process.env.SUPADATA_API_KEY;
+  if (!key) throw new Error("SUPADATA_API_KEY no configurada");
+
+  const url = `https://api.supadata.ai/v1/youtube/transcript?videoId=${encodeURIComponent(
+    youtubeId
+  )}`;
+  const res = await fetch(url, { headers: { "x-api-key": key } });
+  if (!res.ok) {
+    throw new Error(`Supadata ${res.status}: ${await res.text()}`);
+  }
+
+  const data: any = await res.json();
+  const items: any[] = data.content ?? data.transcript ?? [];
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new Error("La API no devolvió transcripción");
+  }
+
+  return items.map((it) => {
+    // offset/duration vienen en milisegundos
+    const start = (it.offset ?? it.start ?? 0) / 1000;
+    const dur = (it.duration ?? 0) / 1000;
+    return {
+      startTime: Number(start.toFixed(2)),
+      endTime: Number((start + dur).toFixed(2)),
+      text: decodeHtmlEntities(String(it.text ?? "")).trim(),
+    };
+  });
+}
+
+/**
+ * Intenta extraer captions con el mejor método disponible:
+ * 1) endpoint timedtext (gratis, funciona en local)
+ * 2) API con proxies (Supadata) si está configurada — funciona en Vercel
+ * Lanza solo si ambos fallan.
+ */
+export async function fetchCaptionsBestEffort(
+  youtubeId: string,
+  lang?: string
+): Promise<CaptionSegment[]> {
+  try {
+    const segments = await fetchCaptions(youtubeId, lang);
+    if (segments.length > 0) return segments;
+    throw new Error("Sin segmentos");
+  } catch (libErr) {
+    // Si hay API configurada, intenta con ella
+    if (process.env.SUPADATA_API_KEY) {
+      return fetchCaptionsViaApi(youtubeId);
+    }
+    throw libErr;
+  }
+}
+
 function decodeHtmlEntities(text: string): string {
   return text
     .replace(/&amp;#39;/g, "'")

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { fetchCaptions } from "@/lib/youtube";
+import { fetchCaptionsBestEffort } from "@/lib/youtube";
 
 async function getOwnedVideo(videoId: string, userId: string) {
   return prisma.video.findFirst({ where: { id: videoId, userId } });
@@ -22,7 +22,7 @@ export async function POST(
     return NextResponse.json({ error: "Vídeo no encontrado" }, { status: 404 });
 
   try {
-    const segments = await fetchCaptions(video.youtubeId);
+    const segments = await fetchCaptionsBestEffort(video.youtubeId);
     if (segments.length === 0) {
       await prisma.video.update({
         where: { id: video.id },
@@ -61,7 +61,7 @@ export async function POST(
     return NextResponse.json(
       {
         error:
-          "No se pudieron extraer las captions (puede que el vídeo no las tenga).",
+          "No se pudieron extraer las captions automáticamente. Pégalas manualmente abajo.",
       },
       { status: 404 }
     );
