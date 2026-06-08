@@ -93,6 +93,13 @@ model Video {
   comments    Int      @default(0)
   durationSec Int      @default(0)
 
+  // Métricas avanzadas (YouTube Analytics API)
+  avgViewDurationSec Int      @default(0)
+  avgViewPercentage  Float    @default(0)
+  subscribersGained  Int      @default(0)
+  retentionCurve     Json? // [{ t: segundos, watchRatio: number }]
+  statsUpdatedAt     DateTime?
+
   transcriptStatus TranscriptStatus @default(NO_CAPTIONS)
   analysisStatus   AnalysisStatus   @default(NOT_ANALYZED)
 
@@ -158,11 +165,13 @@ model GeneratedScript {
   userId String
 
   topic   String
-  // JSON estructurado del guion generado
+  title   String  @default("")
+  // JSON estructurado del guion generado (editable por el usuario)
   content Json
 
   modelUsed String?
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

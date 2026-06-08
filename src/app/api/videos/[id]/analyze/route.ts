@@ -3,6 +3,12 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { analyzeVideo, MODEL } from "@/lib/ai";
 import { getCreatorProfile, refreshCreatorProfile } from "@/lib/creator-profile";
+import { getGoogleAccessToken } from "@/lib/google-token";
+import {
+  fetchVideoAnalytics,
+  detectRetentionDrops,
+  type RetentionPoint,
+} from "@/lib/youtube-analytics";
 
 export async function POST(
   _req: Request,
@@ -34,12 +40,46 @@ export async function POST(
   try {
     const profile = await getCreatorProfile(session.user.id);
 
+    // Intenta obtener/actualizar la retención real antes de analizar.
+    let retentionCurve = (video.retentionCurve as unknown as RetentionPoint[]) ?? [];
+    let avgViewPercentage = video.avgViewPercentage;
+    let avgViewDurationSec = video.avgViewDurationSec;
+    try {
+      const token = await getGoogleAccessToken(session.user.id);
+      if (token) {
+        const a = await fetchVideoAnalytics(
+          token,
+          video.youtubeId,
+          video.publishedAt,
+          video.durationSec
+        );
+        if (a.retentionCurve.length > 0) retentionCurve = a.retentionCurve;
+        avgViewPercentage = a.avgViewPercentage || avgViewPercentage;
+        avgViewDurationSec = a.avgViewDurationSec || avgViewDurationSec;
+        await prisma.video.update({
+          where: { id: video.id },
+          data: {
+            avgViewDurationSec: a.avgViewDurationSec,
+            avgViewPercentage: a.avgViewPercentage,
+            subscribersGained: a.subscribersGained,
+            retentionCurve: a.retentionCurve as unknown as object,
+            statsUpdatedAt: new Date(),
+          },
+        });
+      }
+    } catch (e) {
+      console.error("analytics during analyze (no bloqueante)", e);
+    }
+
     const result = await analyzeVideo({
       title: video.title,
       views: video.views,
       likes: video.likes,
       comments: video.comments,
       durationSec: video.durationSec,
+      avgViewPercentage,
+      avgViewDurationSec,
+      retentionDropsData: detectRetentionDrops(retentionCurve),
       segments: video.segments.map((s) => ({
         startTime: s.startTime,
         endTime: s.endTime,

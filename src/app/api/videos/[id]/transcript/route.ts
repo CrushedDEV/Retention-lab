@@ -51,7 +51,15 @@ export async function POST(
       }),
     ]);
 
-    return NextResponse.json({ ok: true, count: segments.length });
+    return NextResponse.json({
+      ok: true,
+      count: segments.length,
+      segments: segments.map((s) => ({
+        startTime: s.startTime,
+        endTime: s.endTime,
+        text: s.text,
+      })),
+    });
   } catch (err: any) {
     console.error("captions error", err);
     await prisma.video.update({

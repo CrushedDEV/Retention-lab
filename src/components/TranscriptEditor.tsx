@@ -43,6 +43,8 @@ export function TranscriptEditor({
       setShowManual(true); // ofrece el respaldo manual
       return;
     }
+    // Muestra los segmentos al instante (sin necesidad de F5)
+    if (Array.isArray(data.segments)) setSegments(data.segments);
     router.refresh();
   }
 

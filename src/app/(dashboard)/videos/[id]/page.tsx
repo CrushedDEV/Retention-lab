@@ -6,6 +6,8 @@ import { TranscriptEditor } from "@/components/TranscriptEditor";
 import { AnalyzeButton } from "@/components/AnalyzeButton";
 import { AnalysisView } from "@/components/AnalysisView";
 import { AnalysisBadge, TranscriptBadge } from "@/components/StatusBadges";
+import { RetentionChart } from "@/components/RetentionChart";
+import { StatsButton } from "@/components/StatsButton";
 import { formatNumber, formatDate, formatDuration } from "@/lib/format";
 import {
   ArrowLeftIcon,
@@ -15,8 +17,10 @@ import {
   ChatIcon,
   ClockIcon,
   SparkIcon,
+  ChartIcon,
 } from "@/components/icons";
 import type { VideoAnalysisResult } from "@/lib/ai";
+import type { RetentionPoint } from "@/lib/youtube-analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +50,10 @@ export default async function VideoPage({
   const analysisResult = video.analysis
     ? (video.analysis.result as unknown as VideoAnalysisResult)
     : null;
+
+  const retentionCurve =
+    (video.retentionCurve as unknown as RetentionPoint[]) ?? [];
+  const hasRetention = retentionCurve.length >= 2;
 
   return (
     <div>
@@ -97,6 +105,48 @@ export default async function VideoPage({
         ))}
       </div>
 
+      {/* Retención de audiencia */}
+      <div className="mt-5 card p-6">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <ChartIcon className="h-5 w-5 text-accent" />
+            <h2 className="font-display text-lg font-semibold tracking-tight">
+              Retención de audiencia
+            </h2>
+          </div>
+          <StatsButton videoId={video.id} />
+        </div>
+
+        {hasRetention ? (
+          <>
+            <div className="mb-5 grid grid-cols-3 gap-4">
+              <MiniStat
+                label="Retención media"
+                value={`${video.avgViewPercentage}%`}
+              />
+              <MiniStat
+                label="Duración media vista"
+                value={formatDuration(video.avgViewDurationSec)}
+              />
+              <MiniStat
+                label="Subs ganados"
+                value={`+${formatNumber(video.subscribersGained)}`}
+              />
+            </div>
+            <RetentionChart
+              curve={retentionCurve}
+              durationSec={video.durationSec}
+            />
+          </>
+        ) : (
+          <p className="text-sm text-muted">
+            Pulsa «Actualizar retención» para traer la curva de retención real
+            desde YouTube Analytics. Si falla, reconecta YouTube en Ajustes para
+            conceder los permisos de Analytics.
+          </p>
+        )}
+      </div>
+
       <div className="mt-9 grid grid-cols-1 gap-8 lg:grid-cols-2">
         <section>
           <SectionHeader>Transcripción · Guion</SectionHeader>
@@ -132,6 +182,15 @@ export default async function VideoPage({
           )}
         </section>
       </div>
+    </div>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-line bg-surface2/40 p-3.5">
+      <p className="text-[11px] uppercase tracking-wider text-muted">{label}</p>
+      <p className="mt-1 font-mono text-lg font-semibold text-ink">{value}</p>
     </div>
   );
 }

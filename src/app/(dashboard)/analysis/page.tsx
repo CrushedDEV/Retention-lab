@@ -62,6 +62,11 @@ export default async function AnalysisPage() {
               label="Patrones de retención"
               items={profile.retentionPatterns}
             />
+            <ProfileList
+              label="A evitar (anti-patrones)"
+              items={profile.avoidPatterns}
+              danger
+            />
           </div>
         </div>
       ) : (
@@ -132,7 +137,15 @@ function ProfileItem({ label, value }: { label: string; value?: string }) {
   );
 }
 
-function ProfileList({ label, items }: { label: string; items?: string[] }) {
+function ProfileList({
+  label,
+  items,
+  danger,
+}: {
+  label: string;
+  items?: string[];
+  danger?: boolean;
+}) {
   return (
     <div className="bg-surface p-5">
       <p className="eyebrow">{label}</p>
@@ -142,7 +155,11 @@ function ProfileList({ label, items }: { label: string; items?: string[] }) {
             key={i}
             className="flex gap-2 text-sm leading-relaxed text-ink/90"
           >
-            <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-accent/60" />
+            <span
+              className={`mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full ${
+                danger ? "bg-danger/70" : "bg-accent/60"
+              }`}
+            />
             {it}
           </li>
         ))}

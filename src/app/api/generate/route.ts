@@ -41,12 +41,19 @@ export async function POST(req: Request) {
       data: {
         userId: session.user.id,
         topic: parsed.data.topic,
+        title: content.title ?? parsed.data.topic,
         content: content as unknown as object,
         modelUsed: MODEL,
       },
     });
 
-    return NextResponse.json({ ok: true, id: saved.id, content });
+    return NextResponse.json({
+      ok: true,
+      id: saved.id,
+      title: saved.title,
+      content,
+      createdAt: saved.createdAt,
+    });
   } catch (err: any) {
     console.error("generate error", err);
     return NextResponse.json(

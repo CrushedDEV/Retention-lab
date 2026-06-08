@@ -45,6 +45,8 @@ const GOOGLE_SCOPES = [
   "email",
   "profile",
   "https://www.googleapis.com/auth/youtube.readonly",
+  // Necesario para retención de audiencia y métricas avanzadas
+  "https://www.googleapis.com/auth/yt-analytics.readonly",
 ].join(" ");
 
 export const authOptions: NextAuthOptions = {

@@ -37,6 +37,9 @@ export interface CreatorProfileData {
   retentionPatterns: string[];
   writingTone: string;
   summary: string;
+  // Anti-patrones detectados en vídeos que NO funcionaron. No forman parte
+  // del "estilo" del creador: son cosas a EVITAR en futuros guiones.
+  avoidPatterns: string[];
 }
 
 export interface GeneratedScriptContent {
@@ -83,6 +86,9 @@ export async function analyzeVideo(input: {
   likes: number;
   comments: number;
   durationSec: number;
+  avgViewPercentage?: number;
+  avgViewDurationSec?: number;
+  retentionDropsData?: { t: number; dropPct: number }[];
   segments: { startTime: number; endTime: number; text: string }[];
   creatorProfile?: CreatorProfileData | null;
 }): Promise<VideoAnalysisResult> {
@@ -92,11 +98,27 @@ export async function analyzeVideo(input: {
       )}`
     : "Aún no hay perfil del creador; este puede ser uno de sus primeros análisis.";
 
+  const hasRetention =
+    input.retentionDropsData && input.retentionDropsData.length > 0;
+  const retentionBlock = hasRetention
+    ? `DATOS REALES DE RETENCIÓN (YouTube Analytics). Retención media: ${
+        input.avgViewPercentage ?? "?"
+      }% (duración media vista: ${formatTs(
+        input.avgViewDurationSec ?? 0
+      )}). Los momentos con MAYOR caída de audiencia (segundo → % de audiencia perdida) son:
+${input.retentionDropsData!
+  .map((d) => `  · ${formatTs(d.t)} → -${d.dropPct}%`)
+  .join("\n")}
+IMPORTANTE: cruza estos timestamps reales con la transcripción para explicar QUÉ se dijo justo ahí que provocó la caída. Basa "retentionDrops" en estos datos reales, no en suposiciones.`
+    : "No hay datos de retención de Analytics; infiere las posibles caídas a partir del contenido del guion.";
+
   const userPrompt = `Analiza este vídeo de YouTube.
 
 TÍTULO: ${input.title}
 DURACIÓN: ${formatTs(input.durationSec)}
 MÉTRICAS: ${input.views} visualizaciones, ${input.likes} likes, ${input.comments} comentarios.
+
+${retentionBlock}
 
 ${profileBlock}
 
@@ -135,25 +157,25 @@ Devuelve un JSON con EXACTAMENTE esta forma:
 
 export async function buildCreatorProfile(input: {
   previousProfile?: CreatorProfileData | null;
-  videos: {
+  successfulVideos: {
+    title: string;
+    views: number;
+    durationSec: number;
+    analysis: VideoAnalysisResult;
+  }[];
+  underperformingVideos: {
     title: string;
     views: number;
     durationSec: number;
     analysis: VideoAnalysisResult;
   }[];
 }): Promise<CreatorProfileData> {
-  const userPrompt = `A partir de los análisis acumulados de los vídeos de un mismo creador,
-construye/actualiza su PERFIL DE CREADOR. Sintetiza patrones reales, no genéricos.
-
-${
-  input.previousProfile
-    ? `Perfil previo:\n${JSON.stringify(input.previousProfile)}\n`
-    : ""
-}
-
-Análisis de vídeos (ordena tu razonamiento dando más peso a los de más visualizaciones):
-${JSON.stringify(
-  input.videos.map((v) => ({
+  const summarize = (v: {
+    title: string;
+    views: number;
+    durationSec: number;
+    analysis: VideoAnalysisResult;
+  }) => ({
     title: v.title,
     views: v.views,
     durationSec: v.durationSec,
@@ -161,17 +183,43 @@ ${JSON.stringify(
     patterns: v.analysis.creatorPatterns,
     hook: v.analysis.hookAssessment,
     summary: v.analysis.performanceSummary,
-  }))
-)}
+  });
+
+  const userPrompt = `Construye/actualiza el PERFIL DE CREADOR de un mismo autor de YouTube.
+
+REGLA CLAVE: el "estilo" del creador (hookStyle, narrativeStructures, retentionPatterns,
+writingTone, summary, avgSuccessfulDurationSec) debe basarse SOLO en sus vídeos que
+FUNCIONARON BIEN. NO incorpores como "estilo" las cosas de los vídeos que fracasaron;
+esos errores van EXCLUSIVAMENTE en "avoidPatterns" (cosas a evitar en el futuro).
+Sintetiza patrones reales y específicos, nunca consejos genéricos.
+
+${
+  input.previousProfile
+    ? `Perfil previo (refínalo, no lo borres):\n${JSON.stringify(
+        input.previousProfile
+      )}\n`
+    : ""
+}
+
+VÍDEOS QUE FUNCIONARON BIEN (de aquí sale el estilo ganador):
+${JSON.stringify(input.successfulVideos.map(summarize))}
+
+VÍDEOS QUE NO FUNCIONARON (de aquí salen SOLO los avoidPatterns):
+${
+  input.underperformingVideos.length
+    ? JSON.stringify(input.underperformingVideos.map(summarize))
+    : "(ninguno todavía)"
+}
 
 Devuelve un JSON con EXACTAMENTE esta forma:
 {
-  "hookStyle": "descripción del estilo de hooks que mejor le funciona",
+  "hookStyle": "estilo de hooks que mejor le funciona (solo de los éxitos)",
   "avgSuccessfulDurationSec": 480,
   "narrativeStructures": ["estructura narrativa efectiva 1", "..."],
-  "retentionPatterns": ["patrón de retención que mantiene a la audiencia 1", "..."],
-  "writingTone": "tono y estilo de escritura del creador",
-  "summary": "resumen de 2-3 frases que capture la identidad del creador"
+  "retentionPatterns": ["patrón que mantiene a la audiencia 1", "..."],
+  "writingTone": "tono y estilo de escritura en sus vídeos exitosos",
+  "summary": "resumen de 2-3 frases de su identidad como creador (en positivo)",
+  "avoidPatterns": ["error/anti-patrón a evitar 1", "..."]
 }`;
 
   const completion = await getOpenAI().chat.completions.create({
@@ -198,9 +246,9 @@ export async function generateScript(input: {
   topVideos: { title: string; views: number; durationSec: number }[];
 }): Promise<GeneratedScriptContent> {
   const profileBlock = input.creatorProfile
-    ? `PERFIL DEL CREADOR (respétalo: tono, hooks, estructura, duración):\n${JSON.stringify(
-        input.creatorProfile
-      )}`
+    ? `PERFIL DEL CREADOR (respétalo: tono, hooks, estructura, duración).
+Aplica sus patrones ganadores y EVITA explícitamente todo lo listado en "avoidPatterns":
+${JSON.stringify(input.creatorProfile)}`
     : "No hay perfil del creador todavía; usa buenas prácticas generales de retención.";
 
   const topBlock =
