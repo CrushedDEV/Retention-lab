@@ -8,6 +8,7 @@ import {
 export const OWN_SOURCE = "own";
 
 export interface ProfileEntry {
+  id: string;
   sourceKey: string;
   label: string;
   data: CreatorProfileData;
@@ -124,6 +125,7 @@ export async function getCreatorProfiles(
   });
   return profiles
     .map((p) => ({
+      id: p.id,
       sourceKey: p.sourceKey,
       label: p.label,
       data: p.data as unknown as CreatorProfileData,
