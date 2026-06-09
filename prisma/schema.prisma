@@ -81,6 +81,11 @@ enum TranscriptStatus {
   APPROVED
 }
 
+enum VideoFormat {
+  SHORT // vertical corto (Shorts)
+  LONG  // horizontal largo
+}
+
 model Video {
   id          String   @id @default(cuid())
   userId      String
@@ -99,6 +104,7 @@ model Video {
   likes       Int      @default(0)
   comments    Int      @default(0)
   durationSec Int      @default(0)
+  format      VideoFormat @default(LONG)
 
   // Métricas avanzadas (YouTube Analytics API)
   avgViewDurationSec Int      @default(0)

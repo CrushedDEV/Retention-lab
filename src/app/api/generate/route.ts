@@ -15,6 +15,7 @@ const schema = z.object({
   topic: z.string().min(3, "Describe un tema válido"),
   // Perfil de estilo a usar: "own" (por defecto) o el channelId de un creador externo
   sourceKey: z.string().optional(),
+  format: z.enum(["SHORT", "LONG"]).optional(),
 });
 
 export async function POST(req: Request) {
@@ -45,13 +46,21 @@ export async function POST(req: Request) {
 
   try {
     const sourceKey = parsed.data.sourceKey || OWN_SOURCE;
+    const format = parsed.data.format ?? "LONG";
     const profile = await getCreatorProfile(session.user.id, sourceKey);
 
     // Vídeos de referencia: del creador elegido (propio o externo)
-    const videoWhere =
+    const baseWhere =
       sourceKey === OWN_SOURCE
         ? { userId: session.user.id, isExternal: false }
         : { userId: session.user.id, channelId: sourceKey };
+
+    // Prioriza referencias del MISMO formato; si no hay, usa cualquiera.
+    const sameFormatCount = await prisma.video.count({
+      where: { ...baseWhere, format },
+    });
+    const videoWhere =
+      sameFormatCount > 0 ? { ...baseWhere, format } : baseWhere;
 
     const topVideos = await prisma.video.findMany({
       where: videoWhere,
@@ -61,7 +70,7 @@ export async function POST(req: Request) {
     });
 
     // Fragmentos reales de los guiones del creador (para imitar su voz):
-    // los 3 vídeos con más vistas que tengan transcripción.
+    // los 3 vídeos con más vistas (del formato) que tengan transcripción.
     const videosWithTranscript = await prisma.video.findMany({
       where: { ...videoWhere, segments: { some: {} } },
       orderBy: { views: "desc" },
@@ -89,6 +98,7 @@ export async function POST(req: Request) {
       creatorProfile: profile,
       topVideos,
       styleExamples,
+      format,
     });
 
     const saved = await prisma.generatedScript.create({

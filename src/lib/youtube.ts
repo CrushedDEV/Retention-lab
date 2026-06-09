@@ -16,6 +16,38 @@ export interface YouTubeVideoData {
   channelTitle: string | null;
 }
 
+/**
+ * Detecta si un vídeo es un Short (vertical) consultando la URL /shorts/{id}:
+ * - Si YouTube la sirve (200) → es un Short vertical.
+ * - Si redirige a /watch (3xx) → es un vídeo horizontal normal.
+ * Si la petición falla o es ambigua, asume horizontal (LONG).
+ */
+export async function detectFormat(
+  videoId: string,
+  sourceUrl?: string
+): Promise<"SHORT" | "LONG"> {
+  // Pista directa: la URL pegada ya es /shorts/
+  if (sourceUrl && /\/shorts\//.test(sourceUrl)) return "SHORT";
+
+  try {
+    const res = await fetch(`https://www.youtube.com/shorts/${videoId}`, {
+      method: "HEAD",
+      redirect: "manual",
+      headers: {
+        // Un UA de navegador evita respuestas raras desde IPs de datacenter.
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
+      },
+    });
+    // 200 => es Short. 3xx (redirección a /watch) => vídeo horizontal.
+    if (res.status === 200) return "SHORT";
+  } catch {
+    // ignora
+  }
+
+  return "LONG";
+}
+
 /** Extrae el ID de vídeo de una URL de YouTube o devuelve la cadena si ya es un ID. */
 export function extractVideoId(input: string): string | null {
   const s = input.trim();

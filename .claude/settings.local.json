@@ -12,7 +12,8 @@
       "Bash(node -e \"const fs=require\\('fs'\\);const p='src/components/Sidebar.tsx';let s=fs.readFileSync\\(p,'utf8'\\);s=s.split\\('font-700'\\).join\\('font-bold'\\);fs.writeFileSync\\(p,s\\);console.log\\('ok'\\)\")",
       "Bash(git add *)",
       "Bash(git commit -m 'Add transcript API fallback + manual paste for captions on Vercel *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(node -e 'const {PrismaClient}=require\\('\\\\''@prisma/client'\\\\''\\);const p=new PrismaClient\\(\\);p.video.updateMany\\({where:{durationSec:{lte:60,gt:0}},data:{format:'\\\\''SHORT'\\\\''}}\\).then\\(r=>{console.log\\('\\\\''Vídeos marcados como SHORT:'\\\\'',r.count\\);return p.$disconnect\\(\\);}\\).catch\\(e=>{console.error\\(e.message\\);process.exit\\(1\\);}\\)')"
     ]
   }
 }

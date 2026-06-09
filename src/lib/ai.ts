@@ -93,9 +93,22 @@ export async function analyzeVideo(input: {
   creatorProfile?: CreatorProfileData | null;
   profileVideoCount?: number;
   isExternal?: boolean;
+  format?: "SHORT" | "LONG";
 }): Promise<VideoAnalysisResult> {
   const count = input.profileVideoCount ?? 0;
   const lowData = count < 4;
+
+  const formatBlock =
+    input.format === "SHORT"
+      ? `FORMATO: SHORT (vídeo vertical corto). Analízalo con criterios de Shorts:
+- El gancho son los PRIMEROS 1-3 SEGUNDOS; no debe haber intros, saludos ni contexto largo.
+- La retención depende de enganchar al instante, ritmo altísimo, UNA sola idea clara, y de invitar al re-visionado (loop). Las caídas más críticas están en los primeros segundos.
+- Penaliza intros, relleno, ritmo lento o desarrollar varias ideas.
+- El "hookAssessment" debe centrarse en esos primeros segundos y en si el primer frame/frase detiene el scroll.`
+      : `FORMATO: VÍDEO LARGO (horizontal). Analízalo con criterios de formato largo:
+- El gancho son los primeros 15-30s, pero también importa la PROMESA (por qué quedarse) y la estructura por bloques.
+- La retención se juega a lo largo de los minutos: transiciones, ritmo sostenido, evitar valles a mitad, cumplir la promesa.
+- Valora estructura/capítulos, desarrollo y cierre, no solo el arranque.`;
   const profileBlock = input.creatorProfile
     ? `Perfil conocido del creador (basado en ${count} vídeo(s) analizado(s); úsalo SOLO como contexto de fondo):
 ${JSON.stringify(input.creatorProfile)}
@@ -127,6 +140,8 @@ IMPORTANTE: cruza estos timestamps reales con la transcripción para explicar QU
 TÍTULO: ${input.title}
 DURACIÓN: ${formatTs(input.durationSec)}
 MÉTRICAS: ${input.views} visualizaciones, ${input.likes} likes, ${input.comments} comentarios.
+
+${formatBlock}
 
 ${retentionBlock}
 
@@ -291,7 +306,18 @@ export async function generateScript(input: {
   // Fragmentos REALES de guiones del creador (de sus transcripciones) para
   // imitar su voz. Es la señal más importante para que "suene" como él.
   styleExamples?: { title: string; excerpt: string }[];
+  format?: "SHORT" | "LONG";
 }): Promise<GeneratedScriptContent> {
+  const formatBlock =
+    input.format === "SHORT"
+      ? `FORMATO OBJETIVO: SHORT (vertical, 20-60 segundos).
+- UNA sola idea, sin intro ni saludos. La PRIMERA frase es el hook y debe detener el scroll.
+- Ritmo rapidísimo, frases muy cortas, lenguaje directo. Remate final potente que invite a repetir/comentar.
+- Pocas secciones y muy breves. "estimatedDurationSec" entre 20 y 60.`
+      : `FORMATO OBJETIVO: VÍDEO LARGO (horizontal).
+- Hook en los primeros segundos + PROMESA clara de lo que verán.
+- Estructura por secciones/bloques con desarrollo, ejemplos y transiciones que mantengan el ritmo.
+- Cierre con CTA. "estimatedDurationSec" acorde a los vídeos largos exitosos del creador.`;
   const profileBlock = input.creatorProfile
     ? `PERFIL DEL CREADOR (respétalo: tono, hooks, estructura, duración).
 Aplica sus patrones ganadores y EVITA explícitamente todo lo listado en "avoidPatterns":
@@ -318,6 +344,8 @@ ${input.styleExamples
   const userPrompt = `Genera un guion de vídeo de YouTube optimizado para retención y crecimiento orgánico.
 
 TEMA: ${input.topic}
+
+${formatBlock}
 
 ${profileBlock}
 

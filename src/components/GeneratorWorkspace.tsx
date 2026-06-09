@@ -39,6 +39,7 @@ export function GeneratorWorkspace({
   const [sourceKey, setSourceKey] = useState<string>(
     profiles[0]?.sourceKey ?? "own"
   );
+  const [format, setFormat] = useState<"SHORT" | "LONG">("LONG");
   const [scripts, setScripts] = useState<SavedScript[]>(initialScripts);
   const [activeId, setActiveId] = useState<string | null>(
     initialScripts[0]?.id ?? null
@@ -68,7 +69,7 @@ export function GeneratorWorkspace({
     const res = await fetch("/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ topic, sourceKey }),
+      body: JSON.stringify({ topic, sourceKey, format }),
     });
     const data = await res.json().catch(() => ({}));
     setGenLoading(false);
@@ -214,6 +215,28 @@ export function GeneratorWorkspace({
               </p>
             </div>
           )}
+
+          <div className="mb-4">
+            <label className="mb-2 block text-sm font-medium text-ink">
+              Formato
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {(["LONG", "SHORT"] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setFormat(f)}
+                  className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                    format === f
+                      ? "border-accent/50 bg-accent/10 text-accent"
+                      : "border-line bg-surface2/40 text-muted hover:text-ink"
+                  }`}
+                >
+                  {f === "LONG" ? "Vídeo largo" : "Short"}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <label className="mb-2 block text-sm font-medium text-ink">
             Nuevo guion sobre…

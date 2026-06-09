@@ -90,6 +90,9 @@ export default async function VideoPage({
             </a>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
+            <span className="badge border-line bg-surface2/60 text-muted">
+              {video.format === "SHORT" ? "Short" : "Vídeo largo"}
+            </span>
             <TranscriptBadge status={video.transcriptStatus} />
             <AnalysisBadge status={video.analysisStatus} />
           </div>

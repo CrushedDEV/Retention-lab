@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getGoogleAccessToken } from "@/lib/google-token";
-import { fetchChannelVideos } from "@/lib/youtube";
+import { fetchChannelVideos, detectFormat } from "@/lib/youtube";
 
 export async function POST() {
   const session = await auth();
@@ -21,8 +21,15 @@ export async function POST() {
   try {
     const videos = await fetchChannelVideos(accessToken, 25);
 
+    // Detecta el formato (vertical/horizontal) de todos en paralelo.
+    const formats = await Promise.all(
+      videos.map((v) => detectFormat(v.youtubeId))
+    );
+
     let imported = 0;
-    for (const v of videos) {
+    for (let idx = 0; idx < videos.length; idx++) {
+      const v = videos[idx];
+      const format = formats[idx];
       await prisma.video.upsert({
         where: {
           userId_youtubeId: { userId: session.user.id, youtubeId: v.youtubeId },
@@ -38,16 +45,18 @@ export async function POST() {
           likes: v.likes,
           comments: v.comments,
           durationSec: v.durationSec,
+          format,
           channelId: v.channelId,
           channelTitle: v.channelTitle,
           isExternal: false,
         },
         update: {
-          // refresca métricas en reimportaciones
+          // refresca métricas y formato en reimportaciones
           title: v.title,
           views: v.views,
           likes: v.likes,
           comments: v.comments,
+          format,
           channelId: v.channelId,
           channelTitle: v.channelTitle,
         },

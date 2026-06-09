@@ -126,6 +126,7 @@ export async function POST(
       creatorProfile: profile,
       profileVideoCount: profileRow?.analysesCount ?? 0,
       isExternal: video.isExternal,
+      format: video.format,
     });
 
     await prisma.analysis.upsert({
