@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isAdminEmail } from "@/lib/admin";
 import { Sidebar } from "@/components/Sidebar";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,7 @@ export default async function DashboardLayout({
       <Sidebar
         userName={session.user.name ?? session.user.email}
         tokens={me?.tokens ?? 0}
+        isAdmin={isAdminEmail(session.user.email)}
       />
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-6xl px-8 py-10 animate-fade-up">

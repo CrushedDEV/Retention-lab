@@ -11,6 +11,7 @@ import {
   LogoutIcon,
   BookIcon,
   UsersIcon,
+  ShieldIcon,
   WaveLogo,
 } from "@/components/icons";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -27,12 +28,17 @@ const nav = [
 export function Sidebar({
   userName,
   tokens,
+  isAdmin,
 }: {
   userName?: string | null;
   tokens?: number;
+  isAdmin?: boolean;
 }) {
   const pathname = usePathname();
   const initial = (userName ?? "?").trim().charAt(0).toUpperCase();
+  const items = isAdmin
+    ? [...nav, { href: "/admin", label: "Admin", Icon: ShieldIcon }]
+    : nav;
 
   return (
     <aside className="sticky top-0 flex h-screen w-[248px] flex-col border-r border-line bg-surface/40 backdrop-blur-xl">
@@ -52,7 +58,7 @@ export function Sidebar({
       <p className="eyebrow px-6 pb-3 pt-2">Workspace</p>
 
       <nav className="flex-1 space-y-1 px-3">
-        {nav.map(({ href, label, Icon }) => {
+        {items.map(({ href, label, Icon }) => {
           const active =
             pathname === href || pathname.startsWith(href + "/");
           return (
