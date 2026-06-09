@@ -46,17 +46,24 @@ function mapVideo(v: any): TikTokVideo {
 
 // ---- OAuth: intercambio y refresco de tokens ----
 
-export async function exchangeCode(code: string, redirectUri: string) {
+export async function exchangeCode(
+  code: string,
+  redirectUri: string,
+  codeVerifier?: string
+) {
+  const params: Record<string, string> = {
+    client_key: process.env.TIKTOK_CLIENT_KEY ?? "",
+    client_secret: process.env.TIKTOK_CLIENT_SECRET ?? "",
+    code,
+    grant_type: "authorization_code",
+    redirect_uri: redirectUri,
+  };
+  if (codeVerifier) params.code_verifier = codeVerifier;
+
   const res = await fetch(TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_key: process.env.TIKTOK_CLIENT_KEY ?? "",
-      client_secret: process.env.TIKTOK_CLIENT_SECRET ?? "",
-      code,
-      grant_type: "authorization_code",
-      redirect_uri: redirectUri,
-    }),
+    body: new URLSearchParams(params),
   });
   if (!res.ok) throw new Error(`TikTok token ${res.status}: ${await res.text()}`);
   return res.json() as Promise<{

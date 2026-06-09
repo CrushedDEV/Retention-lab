@@ -13,13 +13,18 @@ export async function GET(req: NextRequest) {
   const code = searchParams.get("code");
   const state = searchParams.get("state");
   const cookieState = req.cookies.get("tiktok_oauth_state")?.value;
+  const codeVerifier = req.cookies.get("tiktok_oauth_verifier")?.value;
 
   if (!code || !state || !cookieState || state !== cookieState) {
     return NextResponse.redirect(`${base}/settings?tiktok=error`);
   }
 
   try {
-    const tok = await exchangeCode(code, `${base}/api/tiktok/callback`);
+    const tok = await exchangeCode(
+      code,
+      `${base}/api/tiktok/callback`,
+      codeVerifier
+    );
 
     // Datos de perfil (opcional, para mostrar el nombre)
     let displayName: string | null = null;
@@ -64,6 +69,7 @@ export async function GET(req: NextRequest) {
 
     const res = NextResponse.redirect(`${base}/settings?tiktok=ok`);
     res.cookies.delete("tiktok_oauth_state");
+    res.cookies.delete("tiktok_oauth_verifier");
     return res;
   } catch (e) {
     console.error("tiktok callback error", e);
