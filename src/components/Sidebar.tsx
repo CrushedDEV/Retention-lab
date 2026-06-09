@@ -24,7 +24,13 @@ const nav = [
   { href: "/settings", label: "Ajustes", Icon: SettingsIcon },
 ];
 
-export function Sidebar({ userName }: { userName?: string | null }) {
+export function Sidebar({
+  userName,
+  tokens,
+}: {
+  userName?: string | null;
+  tokens?: number;
+}) {
   const pathname = usePathname();
   const initial = (userName ?? "?").trim().charAt(0).toUpperCase();
 
@@ -72,6 +78,20 @@ export function Sidebar({ userName }: { userName?: string | null }) {
           );
         })}
       </nav>
+
+      {/* Saldo de tokens */}
+      {typeof tokens === "number" && (
+        <div className="mx-3 mb-1 flex items-center justify-between rounded-lg border border-line bg-surface2/50 px-3 py-2">
+          <span className="eyebrow">Tokens</span>
+          <span
+            className={`font-mono text-sm font-semibold ${
+              tokens <= 10 ? "text-danger" : "text-accent"
+            }`}
+          >
+            {tokens}
+          </span>
+        </div>
+      )}
 
       {/* Pie: usuario + tema + salir */}
       <div className="border-t border-line p-3">

@@ -92,6 +92,7 @@ export async function analyzeVideo(input: {
   segments: { startTime: number; endTime: number; text: string }[];
   creatorProfile?: CreatorProfileData | null;
   profileVideoCount?: number;
+  isExternal?: boolean;
 }): Promise<VideoAnalysisResult> {
   const count = input.profileVideoCount ?? 0;
   const lowData = count < 4;
@@ -117,7 +118,9 @@ ${input.retentionDropsData!
   .map((d) => `  · ${formatTs(d.t)} → -${d.dropPct}%`)
   .join("\n")}
 IMPORTANTE: cruza estos timestamps reales con la transcripción para explicar QUÉ se dijo justo ahí que provocó la caída. Basa "retentionDrops" en estos datos reales, no en suposiciones.`
-    : "No hay datos de retención de Analytics; infiere las posibles caídas a partir del contenido del guion.";
+    : input.isExternal
+      ? "Este es un vídeo de OTRO creador: NO tienes acceso a sus métricas privadas (retención, duración media de visualización, etc.). Básate SOLO en el guion y en las métricas públicas (vistas, likes, comentarios). NO inventes datos de retención ni cifras privadas; infiere posibles caídas únicamente a partir del contenido del guion y márcalas como hipótesis."
+      : "No hay datos de retención de Analytics; infiere las posibles caídas a partir del contenido del guion.";
 
   const userPrompt = `Analiza este vídeo de YouTube.
 
@@ -138,7 +141,22 @@ REGLAS DEL ANÁLISIS:
 - No asumas que un único tema (p. ej. "polémica") es la fórmula del creador. Evita afirmaciones tajantes sobre su identidad si hay pocos datos.
 - Sé concreto: ata cada conclusión a algo del guion o a las métricas/retención.
 
-Devuelve un JSON con EXACTAMENTE esta forma:
+RÚBRICA DE PUNTUACIÓN (scoreOutOf10) — USA TODO EL RANGO 1-10 y sé crítico. NO uses 7 por defecto:
+${
+  hasRetention
+    ? `- El factor PRINCIPAL es la retención media real (${input.avgViewPercentage ?? "?"}%):
+  · <25% → 1-3   · 25-35% → 3-5   · 35-45% → 5-6   · 45-55% → 6-7   · 55-65% → 7-8   · 65-75% → 8-9   · >75% → 9-10
+- Ajusta ±1 por la fuerza del hook, la estructura y el engagement (likes/comentarios respecto a las vistas).`
+    : `- Sin datos de retención, puntúa la CALIDAD del guion y el engagement:
+  · hook flojo + estructura confusa → 1-4
+  · correcto pero mejorable → 5-6
+  · sólido, buen hook y ritmo → 7-8
+  · excelente, difícil de mejorar → 9-10
+- Distingue de verdad: la mayoría de vídeos NO son un 7. Reparte notas altas y bajas según el caso.`
+}
+- Devuelve un entero. Calcula la nota a partir de la rúbrica, no una cifra "segura".
+
+Devuelve un JSON con EXACTAMENTE esta forma (rellena scoreOutOf10 con el número que salga de la rúbrica):
 {
   "performanceSummary": "explicación clara de por qué este vídeo funcionó o no, cruzando métricas y guion",
   "retentionDrops": [
@@ -147,7 +165,7 @@ Devuelve un JSON con EXACTAMENTE esta forma:
   "creatorPatterns": ["patrón observable del creador 1", "patrón 2"],
   "recommendations": ["recomendación concreta y accionable 1", "recomendación 2"],
   "hookAssessment": "evaluación de los primeros 5-15 segundos",
-  "scoreOutOf10": 7
+  "scoreOutOf10": <entero 1-10 según la rúbrica>
 }`;
 
   const completion = await getOpenAI().chat.completions.create({
@@ -270,6 +288,9 @@ export async function generateScript(input: {
   topic: string;
   creatorProfile?: CreatorProfileData | null;
   topVideos: { title: string; views: number; durationSec: number }[];
+  // Fragmentos REALES de guiones del creador (de sus transcripciones) para
+  // imitar su voz. Es la señal más importante para que "suene" como él.
+  styleExamples?: { title: string; excerpt: string }[];
 }): Promise<GeneratedScriptContent> {
   const profileBlock = input.creatorProfile
     ? `PERFIL DEL CREADOR (respétalo: tono, hooks, estructura, duración).
@@ -284,6 +305,16 @@ ${JSON.stringify(input.creatorProfile)}`
         )}`
       : "";
 
+  const examplesBlock =
+    input.styleExamples && input.styleExamples.length > 0
+      ? `FRAGMENTOS REALES DE SUS GUIONES (esta es la VOZ que debes imitar: vocabulario,
+muletillas, longitud de frase, ritmo, forma de dirigirse a la audiencia, cómo abre y
+encadena ideas). Imita ESTA forma de hablar, no un español neutro genérico:
+${input.styleExamples
+  .map((e, i) => `--- Ejemplo ${i + 1} (${e.title}) ---\n${e.excerpt}`)
+  .join("\n\n")}`
+      : "No hay transcripciones de ejemplo; imita el tono descrito en el perfil.";
+
   const userPrompt = `Genera un guion de vídeo de YouTube optimizado para retención y crecimiento orgánico.
 
 TEMA: ${input.topic}
@@ -292,18 +323,25 @@ ${profileBlock}
 
 ${topBlock}
 
-El guion debe sonar como este creador (mismo tono y estilo), abrir con un hook fuerte
-en su estilo, mantener una estructura narrativa de las que le funcionan y tener una
-duración acorde a sus vídeos exitosos.
+${examplesBlock}
+
+INSTRUCCIONES DE ESTILO (críticas):
+- El guion debe SONAR como este creador: reutiliza su vocabulario, sus muletillas, su
+  longitud de frase y su forma de abrir y de dirigirse a la audiencia que ves en los
+  fragmentos reales. No escribas en un tono corporativo/neutro.
+- Abre con un hook potente al estilo del creador.
+- Mantén una de sus estructuras narrativas que funcionan y una duración acorde a sus éxitos.
+- Escribe el contenido como SE HABLA (listo para leer en cámara), no como un artículo.
+- No copies frases literales de los ejemplos: imita el ESTILO, con contenido nuevo del tema.
 
 Devuelve un JSON con EXACTAMENTE esta forma:
 {
-  "title": "título sugerido y atractivo",
-  "hook": "primeras frases / hook listo para grabar",
+  "title": "título sugerido y atractivo en su estilo",
+  "hook": "primeras frases / hook listo para grabar, en su voz",
   "sections": [
-    { "heading": "nombre de la sección", "content": "texto del guion listo para grabar", "approxDurationSec": 60 }
+    { "heading": "nombre de la sección", "content": "texto del guion hablado, en su voz", "approxDurationSec": 60 }
   ],
-  "callToAction": "cierre y llamada a la acción",
+  "callToAction": "cierre y llamada a la acción en su estilo",
   "estimatedDurationSec": 480,
   "notesForCreator": ["nota de dirección 1", "nota 2"]
 }`;
@@ -311,7 +349,7 @@ Devuelve un JSON con EXACTAMENTE esta forma:
   const completion = await getOpenAI().chat.completions.create({
     model: MODEL,
     response_format: { type: "json_object" },
-    temperature: 0.7,
+    temperature: 0.8,
     messages: [
       { role: "system", content: ANALYST_PERSONA },
       { role: "user", content: userPrompt },

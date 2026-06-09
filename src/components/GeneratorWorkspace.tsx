@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { formatDuration } from "@/lib/format";
 import {
   SparkIcon,
@@ -11,6 +12,7 @@ import {
   LogoutIcon,
 } from "@/components/icons";
 import type { GeneratedScriptContent } from "@/lib/ai";
+import { TOKEN_COSTS } from "@/lib/token-costs";
 
 interface SavedScript {
   id: string;
@@ -32,6 +34,7 @@ export function GeneratorWorkspace({
   profiles: ProfileOption[];
   initialScripts: SavedScript[];
 }) {
+  const router = useRouter();
   const hasProfile = profiles.length > 0;
   const [sourceKey, setSourceKey] = useState<string>(
     profiles[0]?.sourceKey ?? "own"
@@ -85,6 +88,7 @@ export function GeneratorWorkspace({
     setDraft(structuredClone(newScript.content));
     setDirty(false);
     setTopic("");
+    router.refresh(); // actualiza el saldo de tokens del sidebar
   }
 
   function patch(p: Partial<GeneratedScriptContent>) {
@@ -231,7 +235,7 @@ export function GeneratorWorkspace({
             disabled={genLoading}
           >
             <SparkIcon className="h-4 w-4" />
-            {genLoading ? "Generando…" : "Generar"}
+            {genLoading ? "Generando…" : `Generar (${TOKEN_COSTS.generate})`}
           </button>
         </form>
 

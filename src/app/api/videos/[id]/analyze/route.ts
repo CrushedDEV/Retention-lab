@@ -13,6 +13,12 @@ import {
   detectRetentionDrops,
   type RetentionPoint,
 } from "@/lib/youtube-analytics";
+import {
+  consumeTokens,
+  refundTokens,
+  getTokenBalance,
+  TOKEN_COSTS,
+} from "@/lib/tokens";
 
 export async function POST(
   _req: Request,
@@ -33,6 +39,20 @@ export async function POST(
     return NextResponse.json(
       { error: "Este vídeo no tiene transcripción. Extráela y revísala primero." },
       { status: 400 }
+    );
+  }
+
+  // Reserva tokens de forma atómica antes de llamar a la IA.
+  const COST = TOKEN_COSTS.analyze;
+  const charged = await consumeTokens(session.user.id, COST);
+  if (!charged) {
+    const balance = await getTokenBalance(session.user.id);
+    return NextResponse.json(
+      {
+        error: `No te quedan tokens suficientes (necesitas ${COST}, tienes ${balance}).`,
+        balance,
+      },
+      { status: 402 }
     );
   }
 
@@ -105,6 +125,7 @@ export async function POST(
       })),
       creatorProfile: profile,
       profileVideoCount: profileRow?.analysesCount ?? 0,
+      isExternal: video.isExternal,
     });
 
     await prisma.analysis.upsert({
@@ -130,9 +151,12 @@ export async function POST(
     // automáticamente con cada análisis.
     await refreshCreatorProfile(session.user.id, sourceKey, sourceLabel);
 
-    return NextResponse.json({ ok: true, result });
+    const balance = await getTokenBalance(session.user.id);
+    return NextResponse.json({ ok: true, result, balance });
   } catch (err: any) {
     console.error("analyze error", err);
+    // Reembolsa los tokens reservados: la operación falló.
+    await refundTokens(session.user.id, COST);
     await prisma.video.update({
       where: { id: video.id },
       data: { analysisStatus: "NOT_ANALYZED" },

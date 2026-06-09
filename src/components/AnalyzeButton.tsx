@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { SparkIcon } from "@/components/icons";
+import { TOKEN_COSTS } from "@/lib/token-costs";
 
 export function AnalyzeButton({
   videoId,
@@ -44,8 +45,8 @@ export function AnalyzeButton({
         {loading
           ? "Analizando con IA…"
           : alreadyAnalyzed
-            ? "Re-analizar"
-            : "Analizar vídeo"}
+            ? `Re-analizar (${TOKEN_COSTS.analyze})`
+            : `Analizar vídeo (${TOKEN_COSTS.analyze})`}
       </button>
       {error && <p className="text-sm text-danger">{error}</p>}
       {!hasTranscript && (

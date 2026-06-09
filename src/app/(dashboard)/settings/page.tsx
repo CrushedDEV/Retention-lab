@@ -1,13 +1,22 @@
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { hasGoogleConnected } from "@/lib/google-token";
 import { ConnectYouTubeButton } from "@/components/ConnectYouTubeButton";
-import { CheckIcon, YoutubeIcon } from "@/components/icons";
+import { CheckIcon, YoutubeIcon, SparkIcon } from "@/components/icons";
+import { TOKEN_COSTS } from "@/lib/token-costs";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const session = await auth();
-  const connected = await hasGoogleConnected(session!.user.id);
+  const [connected, me] = await Promise.all([
+    hasGoogleConnected(session!.user.id),
+    prisma.user.findUnique({
+      where: { id: session!.user.id },
+      select: { tokens: true },
+    }),
+  ]);
+  const tokens = me?.tokens ?? 0;
   const initial = (session!.user.name ?? session!.user.email ?? "?")
     .trim()
     .charAt(0)
@@ -31,6 +40,30 @@ export default async function SettingsPage() {
             <p className="font-medium text-ink">{session!.user.name ?? "—"}</p>
             <p className="font-mono text-sm text-muted">{session!.user.email}</p>
           </div>
+        </div>
+      </div>
+
+      <div className="card mt-5 p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
+              <SparkIcon className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="font-medium text-ink">Tokens de uso</p>
+              <p className="mt-1 text-sm text-muted">
+                Analizar un vídeo cuesta {TOKEN_COSTS.analyze} · Generar un
+                guion cuesta {TOKEN_COSTS.generate}.
+              </p>
+            </div>
+          </div>
+          <span
+            className={`font-mono text-2xl font-bold ${
+              tokens <= 10 ? "text-danger" : "text-accent"
+            }`}
+          >
+            {tokens}
+          </span>
         </div>
       </div>
 
