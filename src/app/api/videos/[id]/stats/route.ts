@@ -40,7 +40,11 @@ export async function POST(
         avgViewDurationSec: analytics.avgViewDurationSec,
         avgViewPercentage: analytics.avgViewPercentage,
         subscribersGained: analytics.subscribersGained,
+        subscribersLost: analytics.subscribersLost,
+        estimatedMinutesWatched: analytics.estimatedMinutesWatched,
+        shares: analytics.shares,
         retentionCurve: analytics.retentionCurve as unknown as object,
+        trafficSources: analytics.trafficSources as unknown as object,
         statsUpdatedAt: new Date(),
       },
     });

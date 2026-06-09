@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getGoogleAccessToken } from "@/lib/google-token";
-import { fetchChannelVideos, detectFormat } from "@/lib/youtube";
+import {
+  fetchChannelVideos,
+  detectFormat,
+  fetchSubscriberCount,
+} from "@/lib/youtube";
 
 export async function POST() {
   const session = await auth();
@@ -25,6 +29,8 @@ export async function POST() {
     const formats = await Promise.all(
       videos.map((v) => detectFormat(v.youtubeId))
     );
+    // Suscriptores del canal (mismo para todos los vídeos propios).
+    const channelSubscribers = await fetchSubscriberCount(accessToken);
 
     let imported = 0;
     for (let idx = 0; idx < videos.length; idx++) {
@@ -48,6 +54,7 @@ export async function POST() {
           format,
           channelId: v.channelId,
           channelTitle: v.channelTitle,
+          channelSubscribers,
           isExternal: false,
         },
         update: {
@@ -59,6 +66,7 @@ export async function POST() {
           format,
           channelId: v.channelId,
           channelTitle: v.channelTitle,
+          channelSubscribers,
         },
       });
       imported++;

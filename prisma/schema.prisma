@@ -106,12 +106,19 @@ model Video {
   durationSec Int      @default(0)
   format      VideoFormat @default(LONG)
 
+  // Suscriptores del canal (snapshot al importar). Para contextualizar vistas.
+  channelSubscribers Int @default(0)
+
   // Métricas avanzadas (YouTube Analytics API)
-  avgViewDurationSec Int      @default(0)
-  avgViewPercentage  Float    @default(0)
-  subscribersGained  Int      @default(0)
-  retentionCurve     Json? // [{ t: segundos, watchRatio: number }]
-  statsUpdatedAt     DateTime?
+  avgViewDurationSec      Int      @default(0)
+  avgViewPercentage       Float    @default(0)
+  subscribersGained       Int      @default(0)
+  subscribersLost         Int      @default(0)
+  estimatedMinutesWatched Int      @default(0)
+  shares                  Int      @default(0)
+  retentionCurve          Json? // [{ t: segundos, watchRatio: number }]
+  trafficSources          Json? // [{ source, views, pct }]
+  statsUpdatedAt          DateTime?
 
   transcriptStatus TranscriptStatus @default(NO_CAPTIONS)
   analysisStatus   AnalysisStatus   @default(NOT_ANALYZED)

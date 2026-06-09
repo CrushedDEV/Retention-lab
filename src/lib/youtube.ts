@@ -152,6 +152,23 @@ function mapVideoItem(v: any): YouTubeVideoData {
   };
 }
 
+/** Suscriptores de un canal. Sin channelId usa el canal del usuario (mine). */
+export async function fetchSubscriberCount(
+  accessToken: string,
+  channelId?: string
+): Promise<number> {
+  try {
+    const path = channelId
+      ? `channels?part=statistics&id=${channelId}`
+      : `channels?part=statistics&mine=true`;
+    const data = await ytFetch(path, accessToken);
+    const subs = data.items?.[0]?.statistics?.subscriberCount;
+    return parseInt(subs ?? "0") || 0;
+  } catch {
+    return 0;
+  }
+}
+
 /** Obtiene los datos completos de un vídeo público por su ID. */
 export async function fetchVideoById(
   accessToken: string,

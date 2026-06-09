@@ -80,6 +80,16 @@ export async function POST(
     let retentionCurve = (video.retentionCurve as unknown as RetentionPoint[]) ?? [];
     let avgViewPercentage = video.avgViewPercentage;
     let avgViewDurationSec = video.avgViewDurationSec;
+    let subscribersGained = video.subscribersGained;
+    let subscribersLost = video.subscribersLost;
+    let shares = video.shares;
+    let estimatedMinutesWatched = video.estimatedMinutesWatched;
+    let trafficSources =
+      (video.trafficSources as unknown as {
+        source: string;
+        views: number;
+        pct: number;
+      }[]) ?? [];
     try {
       const token = video.isExternal
         ? null
@@ -94,13 +104,22 @@ export async function POST(
         if (a.retentionCurve.length > 0) retentionCurve = a.retentionCurve;
         avgViewPercentage = a.avgViewPercentage || avgViewPercentage;
         avgViewDurationSec = a.avgViewDurationSec || avgViewDurationSec;
+        subscribersGained = a.subscribersGained;
+        subscribersLost = a.subscribersLost;
+        shares = a.shares;
+        estimatedMinutesWatched = a.estimatedMinutesWatched;
+        if (a.trafficSources.length > 0) trafficSources = a.trafficSources;
         await prisma.video.update({
           where: { id: video.id },
           data: {
             avgViewDurationSec: a.avgViewDurationSec,
             avgViewPercentage: a.avgViewPercentage,
             subscribersGained: a.subscribersGained,
+            subscribersLost: a.subscribersLost,
+            estimatedMinutesWatched: a.estimatedMinutesWatched,
+            shares: a.shares,
             retentionCurve: a.retentionCurve as unknown as object,
+            trafficSources: a.trafficSources as unknown as object,
             statsUpdatedAt: new Date(),
           },
         });
@@ -118,6 +137,14 @@ export async function POST(
       avgViewPercentage,
       avgViewDurationSec,
       retentionDropsData: detectRetentionDrops(retentionCurve),
+      channelSubscribers: video.channelSubscribers,
+      subscribersGained: video.isExternal ? undefined : subscribersGained,
+      subscribersLost: video.isExternal ? undefined : subscribersLost,
+      shares: video.isExternal ? undefined : shares,
+      estimatedMinutesWatched: video.isExternal
+        ? undefined
+        : estimatedMinutesWatched,
+      trafficSources: video.isExternal ? undefined : trafficSources,
       segments: video.segments.map((s) => ({
         startTime: s.startTime,
         endTime: s.endTime,

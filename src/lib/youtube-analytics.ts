@@ -5,13 +5,41 @@ export interface RetentionPoint {
   watchRatio: number; // 1.0 = 100% de la audiencia inicial
 }
 
+export interface TrafficSource {
+  source: string; // etiqueta legible
+  views: number;
+  pct: number; // % del total
+}
+
 export interface VideoAnalytics {
   avgViewDurationSec: number;
   avgViewPercentage: number;
   subscribersGained: number;
+  subscribersLost: number;
+  estimatedMinutesWatched: number;
+  shares: number;
   retentionCurve: RetentionPoint[];
+  trafficSources: TrafficSource[];
   errors: string[];
 }
+
+// Etiquetas legibles para los tipos de fuente de tráfico de YouTube.
+const TRAFFIC_LABELS: Record<string, string> = {
+  YT_SEARCH: "Búsqueda de YouTube",
+  RELATED_VIDEO: "Vídeos sugeridos",
+  BROWSE: "Pantalla de inicio / Explorar",
+  SHORTS: "Feed de Shorts",
+  YT_CHANNEL: "Página del canal",
+  PLAYLIST: "Playlists",
+  EXT_URL: "Fuentes externas",
+  NOTIFICATION: "Notificaciones",
+  SUBSCRIBER: "Suscripciones (feed)",
+  END_SCREEN: "Pantallas finales",
+  ANNOTATION: "Tarjetas / anotaciones",
+  NO_LINK_OTHER: "Otros",
+  ADVERTISING: "Publicidad",
+  HASHTAGS: "Hashtags",
+};
 
 async function query(params: Record<string, string>, accessToken: string) {
   const qs = new URLSearchParams(params).toString();
@@ -45,7 +73,11 @@ export async function fetchVideoAnalytics(
     avgViewDurationSec: 0,
     avgViewPercentage: 0,
     subscribersGained: 0,
+    subscribersLost: 0,
+    estimatedMinutesWatched: 0,
+    shares: 0,
     retentionCurve: [],
+    trafficSources: [],
     errors: [],
   };
 
@@ -56,7 +88,8 @@ export async function fetchVideoAnalytics(
         ids: "channel==MINE",
         startDate,
         endDate,
-        metrics: "averageViewDuration,averageViewPercentage,subscribersGained",
+        metrics:
+          "averageViewDuration,averageViewPercentage,subscribersGained,subscribersLost,estimatedMinutesWatched,shares",
         filters: `video==${youtubeId}`,
       },
       accessToken
@@ -66,9 +99,41 @@ export async function fetchVideoAnalytics(
       result.avgViewDurationSec = Math.round(row[0] ?? 0);
       result.avgViewPercentage = Number((row[1] ?? 0).toFixed(1));
       result.subscribersGained = Math.round(row[2] ?? 0);
+      result.subscribersLost = Math.round(row[3] ?? 0);
+      result.estimatedMinutesWatched = Math.round(row[4] ?? 0);
+      result.shares = Math.round(row[5] ?? 0);
     }
   } catch (e: any) {
     console.error("analytics summary error", e);
+    result.errors.push(String(e?.message ?? e));
+  }
+
+  // 1b) Fuentes de tráfico (de dónde vienen las vistas)
+  try {
+    const traffic = await query(
+      {
+        ids: "channel==MINE",
+        startDate,
+        endDate,
+        metrics: "views",
+        dimensions: "insightTrafficSourceType",
+        filters: `video==${youtubeId}`,
+        sort: "-views",
+      },
+      accessToken
+    );
+    const rows: [string, number][] = traffic.rows ?? [];
+    const total = rows.reduce((s, r) => s + (r[1] ?? 0), 0) || 1;
+    result.trafficSources = rows
+      .map(([source, views]) => ({
+        source: TRAFFIC_LABELS[source] ?? source,
+        views: Math.round(views ?? 0),
+        pct: Number((((views ?? 0) / total) * 100).toFixed(1)),
+      }))
+      .filter((t) => t.views > 0)
+      .slice(0, 6);
+  } catch (e: any) {
+    console.error("analytics traffic error", e);
     result.errors.push(String(e?.message ?? e));
   }
 

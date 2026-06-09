@@ -3,7 +3,12 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getGoogleAccessToken } from "@/lib/google-token";
-import { fetchVideoById, extractVideoId, detectFormat } from "@/lib/youtube";
+import {
+  fetchVideoById,
+  extractVideoId,
+  detectFormat,
+  fetchSubscriberCount,
+} from "@/lib/youtube";
 
 const schema = z.object({ videoIdOrUrl: z.string().min(5) });
 
@@ -40,6 +45,9 @@ export async function POST(req: Request) {
       );
 
     const format = await detectFormat(v.youtubeId, parsed.data.videoIdOrUrl);
+    const channelSubscribers = v.channelId
+      ? await fetchSubscriberCount(accessToken, v.channelId)
+      : 0;
 
     const saved = await prisma.video.upsert({
       where: {
@@ -59,6 +67,7 @@ export async function POST(req: Request) {
         format,
         channelId: v.channelId,
         channelTitle: v.channelTitle,
+        channelSubscribers,
         isExternal: true,
       },
       update: {
@@ -68,6 +77,7 @@ export async function POST(req: Request) {
         format,
         channelId: v.channelId,
         channelTitle: v.channelTitle,
+        channelSubscribers,
       },
     });
 

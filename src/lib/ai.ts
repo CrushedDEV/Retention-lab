@@ -89,6 +89,12 @@ export async function analyzeVideo(input: {
   avgViewPercentage?: number;
   avgViewDurationSec?: number;
   retentionDropsData?: { t: number; dropPct: number }[];
+  channelSubscribers?: number;
+  subscribersGained?: number;
+  subscribersLost?: number;
+  shares?: number;
+  estimatedMinutesWatched?: number;
+  trafficSources?: { source: string; views: number; pct: number }[];
   segments: { startTime: number; endTime: number; text: string }[];
   creatorProfile?: CreatorProfileData | null;
   profileVideoCount?: number;
@@ -135,11 +141,45 @@ IMPORTANTE: cruza estos timestamps reales con la transcripción para explicar QU
       ? "Este es un vídeo de OTRO creador: NO tienes acceso a sus métricas privadas (retención, duración media de visualización, etc.). Básate SOLO en el guion y en las métricas públicas (vistas, likes, comentarios). NO inventes datos de retención ni cifras privadas; infiere posibles caídas únicamente a partir del contenido del guion y márcalas como hipótesis."
       : "No hay datos de retención de Analytics; infiere las posibles caídas a partir del contenido del guion.";
 
+  const subs = input.channelSubscribers ?? 0;
+  const viewsPerSub =
+    subs > 0 ? (input.views / subs).toFixed(2) : null;
+  const contextBlock = `CONTEXTO DEL CANAL Y MÉTRICAS:
+- Suscriptores del canal: ${subs > 0 ? subs.toLocaleString("es-ES") : "desconocido"}
+- Visualizaciones: ${input.views.toLocaleString("es-ES")}${
+    viewsPerSub
+      ? ` (≈ ${viewsPerSub} vistas por suscriptor — INTERPRETA el rendimiento RELATIVO al tamaño del canal: muchas vistas por suscriptor indican que YouTube empujó el vídeo más allá de la base de fans)`
+      : ""
+  }
+- Likes: ${input.likes.toLocaleString("es-ES")} · Comentarios: ${input.comments.toLocaleString("es-ES")}${
+    input.shares ? ` · Compartidos: ${input.shares.toLocaleString("es-ES")}` : ""
+  }
+${
+  input.estimatedMinutesWatched
+    ? `- Tiempo total visto: ${input.estimatedMinutesWatched.toLocaleString("es-ES")} min`
+    : ""
+}
+${
+  input.subscribersGained != null
+    ? `- Suscriptores: +${input.subscribersGained} / -${input.subscribersLost ?? 0} (neto ${
+        (input.subscribersGained ?? 0) - (input.subscribersLost ?? 0)
+      }) atribuidos a este vídeo`
+    : ""
+}
+${
+  input.trafficSources && input.trafficSources.length > 0
+    ? `- Fuentes de tráfico (de dónde vienen las vistas): ${input.trafficSources
+        .map((t) => `${t.source} ${t.pct}%`)
+        .join(", ")}. Interpreta esto: "Pantalla de inicio/Sugeridos" altos = YouTube lo recomienda (buen señal de retención); "Búsqueda" alto = funciona por SEO/título; muchos por "Feed de Shorts" = distribución típica de Short.`
+    : ""
+}`;
+
   const userPrompt = `Analiza este vídeo de YouTube.
 
 TÍTULO: ${input.title}
 DURACIÓN: ${formatTs(input.durationSec)}
-MÉTRICAS: ${input.views} visualizaciones, ${input.likes} likes, ${input.comments} comentarios.
+
+${contextBlock}
 
 ${formatBlock}
 
@@ -151,6 +191,8 @@ TRANSCRIPCIÓN SEGMENTADA (con timestamps):
 ${transcriptToText(input.segments)}
 
 REGLAS DEL ANÁLISIS:
+- Juzga el rendimiento SIEMPRE en RELACIÓN al tamaño del canal (suscriptores), no en cifras absolutas: 10.000 vistas son excelentes con 1.000 subs y flojas con 1.000.000.
+- Usa las fuentes de tráfico y el tiempo de visualización para explicar POR QUÉ rindió así (distribución de YouTube vs. base de fans vs. búsqueda).
 - Juzga este vídeo POR SUS PROPIOS MÉRITOS y por los datos reales (métricas + retención), no por compararlo con vídeos anteriores del creador.
 - NO consideres un punto negativo que el vídeo se aparte del tema o estilo "habitual" del creador. Explorar temas distintos es legítimo y a menudo necesario para crecer; no lo penalices ni lo menciones como debilidad salvo que los DATOS de retención lo respalden.
 - No asumas que un único tema (p. ej. "polémica") es la fórmula del creador. Evita afirmaciones tajantes sobre su identidad si hay pocos datos.

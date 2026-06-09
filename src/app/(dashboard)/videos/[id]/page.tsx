@@ -54,6 +54,12 @@ export default async function VideoPage({
   const retentionCurve =
     (video.retentionCurve as unknown as RetentionPoint[]) ?? [];
   const hasRetention = retentionCurve.length >= 2;
+  const trafficSources =
+    (video.trafficSources as unknown as {
+      source: string;
+      views: number;
+      pct: number;
+    }[]) ?? [];
 
   return (
     <div>
@@ -80,6 +86,9 @@ export default async function VideoPage({
           </h1>
           <div className="mt-2 flex items-center gap-4 font-mono text-xs text-muted">
             <span>{formatDate(video.publishedAt)}</span>
+            {video.channelSubscribers > 0 && (
+              <span>{formatNumber(video.channelSubscribers)} subs</span>
+            )}
             <a
               href={video.url}
               target="_blank"
@@ -131,7 +140,7 @@ export default async function VideoPage({
 
         {hasRetention ? (
           <>
-            <div className="mb-5 grid grid-cols-3 gap-4">
+            <div className="mb-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
               <MiniStat
                 label="Retención media"
                 value={`${video.avgViewPercentage}%`}
@@ -141,14 +150,47 @@ export default async function VideoPage({
                 value={formatDuration(video.avgViewDurationSec)}
               />
               <MiniStat
-                label="Subs ganados"
-                value={`+${formatNumber(video.subscribersGained)}`}
+                label="Tiempo total visto"
+                value={`${formatNumber(video.estimatedMinutesWatched)} min`}
+              />
+              <MiniStat
+                label="Compartidos"
+                value={formatNumber(video.shares)}
+              />
+              <MiniStat
+                label="Subs netos"
+                value={`${
+                  video.subscribersGained - video.subscribersLost >= 0 ? "+" : ""
+                }${formatNumber(video.subscribersGained - video.subscribersLost)}`}
               />
             </div>
             <RetentionChart
               curve={retentionCurve}
               durationSec={video.durationSec}
             />
+            {trafficSources.length > 0 && (
+              <div className="mt-6">
+                <p className="eyebrow mb-3">Fuentes de tráfico</p>
+                <div className="space-y-2">
+                  {trafficSources.map((t) => (
+                    <div key={t.source} className="flex items-center gap-3">
+                      <span className="w-44 flex-shrink-0 truncate text-xs text-muted">
+                        {t.source}
+                      </span>
+                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface2">
+                        <div
+                          className="h-full rounded-full bg-accent"
+                          style={{ width: `${Math.min(100, t.pct)}%` }}
+                        />
+                      </div>
+                      <span className="w-12 flex-shrink-0 text-right font-mono text-xs text-ink">
+                        {t.pct}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <p className="text-sm text-muted">
