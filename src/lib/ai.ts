@@ -95,6 +95,7 @@ export async function analyzeVideo(input: {
   shares?: number;
   estimatedMinutesWatched?: number;
   trafficSources?: { source: string; views: number; pct: number }[];
+  tiktok?: { views: number; likes: number; comments: number; shares: number } | null;
   segments: { startTime: number; endTime: number; text: string }[];
   creatorProfile?: CreatorProfileData | null;
   profileVideoCount?: number;
@@ -171,6 +172,11 @@ ${
     ? `- Fuentes de tráfico (de dónde vienen las vistas): ${input.trafficSources
         .map((t) => `${t.source} ${t.pct}%`)
         .join(", ")}. Interpreta esto: "Pantalla de inicio/Sugeridos" altos = YouTube lo recomienda (buen señal de retención); "Búsqueda" alto = funciona por SEO/título; muchos por "Feed de Shorts" = distribución típica de Short.`
+    : ""
+}
+${
+  input.tiktok
+    ? `\n- MISMO VÍDEO EN TIKTOK: ${input.tiktok.views.toLocaleString("es-ES")} views, ${input.tiktok.likes.toLocaleString("es-ES")} likes, ${input.tiktok.comments.toLocaleString("es-ES")} comentarios, ${input.tiktok.shares.toLocaleString("es-ES")} compartidos. Compara el rendimiento ENTRE PLATAFORMAS: si arrasa en una y no en la otra, razona por qué (hook, formato vertical vs horizontal, audiencia, duración) y tenlo en cuenta en las recomendaciones.`
     : ""
 }`;
 

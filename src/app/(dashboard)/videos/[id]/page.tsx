@@ -8,6 +8,7 @@ import { AnalysisView } from "@/components/AnalysisView";
 import { AnalysisBadge, TranscriptBadge } from "@/components/StatusBadges";
 import { RetentionChart } from "@/components/RetentionChart";
 import { StatsButton } from "@/components/StatsButton";
+import { TikTokPanel } from "@/components/TikTokPanel";
 import { formatNumber, formatDate, formatDuration } from "@/lib/format";
 import {
   ArrowLeftIcon,
@@ -30,13 +31,19 @@ export default async function VideoPage({
   params: { id: string };
 }) {
   const session = await auth();
-  const video = await prisma.video.findFirst({
-    where: { id: params.id, userId: session!.user.id },
-    include: {
-      segments: { orderBy: { order: "asc" } },
-      analysis: true,
-    },
-  });
+  const [video, tiktokAccount] = await Promise.all([
+    prisma.video.findFirst({
+      where: { id: params.id, userId: session!.user.id },
+      include: {
+        segments: { orderBy: { order: "asc" } },
+        analysis: true,
+      },
+    }),
+    prisma.tikTokAccount.findUnique({
+      where: { userId: session!.user.id },
+      select: { id: true },
+    }),
+  ]);
 
   if (!video) notFound();
 
@@ -199,6 +206,26 @@ export default async function VideoPage({
             conceder los permisos de Analytics.
           </p>
         )}
+      </div>
+
+      {/* TikTok (solo vídeos propios) */}
+      <div className={`mt-5 ${video.isExternal ? "hidden" : ""}`}>
+        <TikTokPanel
+          videoId={video.id}
+          videoTitle={video.title}
+          connected={!!tiktokAccount}
+          initialStats={
+            video.tiktokVideoId
+              ? {
+                  views: video.tiktokViews,
+                  likes: video.tiktokLikes,
+                  comments: video.tiktokComments,
+                  shares: video.tiktokShares,
+                  url: video.tiktokUrl,
+                }
+              : null
+          }
+        />
       </div>
 
       <div className="mt-9 grid grid-cols-1 gap-8 lg:grid-cols-2">

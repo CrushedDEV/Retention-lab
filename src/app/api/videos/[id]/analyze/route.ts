@@ -145,6 +145,14 @@ export async function POST(
         ? undefined
         : estimatedMinutesWatched,
       trafficSources: video.isExternal ? undefined : trafficSources,
+      tiktok: video.tiktokVideoId
+        ? {
+            views: video.tiktokViews,
+            likes: video.tiktokLikes,
+            comments: video.tiktokComments,
+            shares: video.tiktokShares,
+          }
+        : null,
       segments: video.segments.map((s) => ({
         startTime: s.startTime,
         endTime: s.endTime,

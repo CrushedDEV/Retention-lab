@@ -7,13 +7,21 @@ import { TOKEN_COSTS } from "@/lib/token-costs";
 
 export const dynamic = "force-dynamic";
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: { tiktok?: string };
+}) {
   const session = await auth();
-  const [connected, me] = await Promise.all([
+  const [connected, me, tiktok] = await Promise.all([
     hasGoogleConnected(session!.user.id),
     prisma.user.findUnique({
       where: { id: session!.user.id },
       select: { tokens: true },
+    }),
+    prisma.tikTokAccount.findUnique({
+      where: { userId: session!.user.id },
+      select: { displayName: true },
     }),
   ]);
   const tokens = me?.tokens ?? 0;
@@ -89,6 +97,46 @@ export default async function SettingsPage() {
             </div>
           </div>
           <ConnectYouTubeButton connected={connected} />
+        </div>
+      </div>
+
+      {/* TikTok */}
+      <div className="card mt-5 p-6">
+        {searchParams?.tiktok === "ok" && (
+          <p className="mb-4 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
+            Cuenta de TikTok conectada correctamente.
+          </p>
+        )}
+        {searchParams?.tiktok === "error" && (
+          <p className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
+            No se pudo conectar TikTok. Inténtalo de nuevo.
+          </p>
+        )}
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex gap-4">
+            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-surface2 text-ink">
+              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden>
+                <path d="M16.5 3c.3 2 1.6 3.6 3.5 3.9v2.5c-1.3 0-2.5-.4-3.5-1v6.1a5.5 5.5 0 1 1-5.5-5.5c.3 0 .6 0 .9.1v2.6a3 3 0 1 0 2.1 2.8V3h2.5Z" />
+              </svg>
+            </div>
+            <div>
+              <p className="font-medium text-ink">Conexión con TikTok</p>
+              <p className="mt-1 max-w-sm text-sm text-muted">
+                {tiktok
+                  ? `Conectada${tiktok.displayName ? ` como ${tiktok.displayName}` : ""}. Podrás enlazar las stats de TikTok en cada vídeo.`
+                  : "Conecta tu cuenta de TikTok para traer las estadísticas de tus vídeos resubidos allí."}
+              </p>
+              {tiktok && (
+                <span className="badge mt-3 border-success/30 bg-success/10 text-success">
+                  <CheckIcon className="h-3 w-3" />
+                  Conectada
+                </span>
+              )}
+            </div>
+          </div>
+          <a href="/api/tiktok/connect" className={tiktok ? "btn-secondary" : "btn-primary"}>
+            {tiktok ? "Reconectar" : "Conectar con TikTok"}
+          </a>
         </div>
       </div>
     </div>
